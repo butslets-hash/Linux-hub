@@ -1,0 +1,2250 @@
+--[[
+  SIMULADOR LINUX PARA ROBLOX (executor · LocalScript)
+  Janela 320x340, movível, minimiza para uma bolinha.
+  Configurações: idioma (muda o sistema inteiro), tema (Linux, Windows 98, Windows 95, Windows XP) e música de fundo.
+  Apps: Terminal, Velocidade, Auto click, Teletransporte, Áudio, Música, Chat Bot, Navegador, Servidores, Jogos, Configurações.
+]]
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local SoundService = game:GetService("SoundService")
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local TextChatService = game:GetService("TextChatService")
+local RS = game:GetService("ReplicatedStorage")
+local Debris = game:GetService("Debris")
+local LP = Players.LocalPlayer
+
+local httpRequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+local VIM = nil
+pcall(function() VIM = game:GetService("VirtualInputManager") end)
+
+----------------------------------------------------------------
+-- CONFIGURAÇÃO
+----------------------------------------------------------------
+local W, H = 320, 340
+local TOP_H, DOCK_W, TASK_H, BAR_H, WIN_W = 22, 36, 26, 20, 250
+local MUSICA_FUNDO = ""   -- cole aqui o ID de uma música suave (só números)
+local API_KEY = ""
+local MODEL_URL = "https://api.openai.com/v1/responses"
+local MODEL_NAME = "gpt-6-luna"
+local TIMEOUT = 60
+local DISCORD = "https://discord.gg/MB4JMzM4m"
+local WHITE, BLACK = Color3.new(1, 1, 1), Color3.new(0, 0, 0)
+local RED = Color3.fromRGB(200, 60, 60)
+
+local SONS = {
+	clique = "rbxasset://sounds/button.wav",
+	abrir = "rbxasset://sounds/swoosh.wav",
+	ok = "rbxasset://sounds/electronicpingshort.wav",
+	falha = "rbxasset://sounds/uuhhh.mp3",
+	explosao = "rbxasset://sounds/Explosion.wav",
+	msg = "rbxasset://sounds/swoosh.wav",
+}
+
+local CFG = {lang = 1, theme = "linux", bgOn = true, bgId = MUSICA_FUNDO} -- lang: 1 pt · 2 en · 3 es
+local LANGLBL = {"Português", "English", "Español"}
+local LANGNAME = {"Brazilian Portuguese", "English", "Spanish"}
+
+----------------------------------------------------------------
+-- TEMAS
+----------------------------------------------------------------
+local THEMES = {
+	linux = {
+		name = "Linux", layout = "linux", bev = 0, font = Enum.Font.Gotham, fb = Enum.Font.GothamBold,
+		desk = {Color3.fromRGB(119, 41, 83), Color3.fromRGB(46, 0, 32)},
+		win = Color3.fromRGB(53, 53, 53), text = Color3.fromRGB(235, 235, 235), dtext = WHITE,
+		accent = Color3.fromRGB(233, 84, 32), accentText = WHITE,
+		btn = Color3.fromRGB(44, 44, 44), btnText = Color3.fromRGB(235, 235, 235),
+		field = Color3.fromRGB(28, 28, 28), muted = Color3.fromRGB(165, 165, 165), edge = Color3.fromRGB(15, 15, 15),
+		t1 = Color3.fromRGB(42, 42, 42), t2 = Color3.fromRGB(42, 42, 42), tText = WHITE,
+		chrome = BLACK, chromeText = WHITE, dock = Color3.fromRGB(44, 44, 44), start = Color3.fromRGB(233, 84, 32),
+		term = Color3.fromRGB(14, 14, 14), termText = Color3.fromRGB(90, 255, 120),
+	},
+	w98 = {
+		name = "Windows 98", layout = "win", bev = 1, font = Enum.Font.Arial, fb = Enum.Font.ArialBold,
+		desk = {Color3.fromRGB(0, 128, 128), Color3.fromRGB(0, 128, 128)},
+		win = Color3.fromRGB(192, 192, 192), text = BLACK, dtext = WHITE,
+		accent = Color3.fromRGB(0, 0, 128), accentText = WHITE,
+		btn = Color3.fromRGB(192, 192, 192), btnText = BLACK,
+		field = WHITE, muted = Color3.fromRGB(110, 110, 110), edge = BLACK,
+		t1 = Color3.fromRGB(0, 0, 128), t2 = Color3.fromRGB(16, 132, 208), tText = WHITE,
+		chrome = Color3.fromRGB(192, 192, 192), chromeText = BLACK, start = Color3.fromRGB(192, 192, 192),
+		hi = WHITE, sh = Color3.fromRGB(128, 128, 128), term = BLACK, termText = Color3.fromRGB(192, 192, 192),
+	},
+	w95 = {
+		name = "Windows 95", layout = "win", bev = 2, font = Enum.Font.Arial, fb = Enum.Font.ArialBold,
+		desk = {Color3.fromRGB(0, 128, 128), Color3.fromRGB(0, 128, 128)},
+		win = Color3.fromRGB(192, 192, 192), text = BLACK, dtext = WHITE,
+		accent = Color3.fromRGB(0, 0, 128), accentText = WHITE,
+		btn = Color3.fromRGB(192, 192, 192), btnText = BLACK,
+		field = WHITE, muted = Color3.fromRGB(110, 110, 110), edge = BLACK,
+		t1 = Color3.fromRGB(0, 0, 128), t2 = Color3.fromRGB(0, 0, 128), tText = WHITE,
+		chrome = Color3.fromRGB(192, 192, 192), chromeText = BLACK, start = Color3.fromRGB(192, 192, 192),
+		hi = WHITE, sh = Color3.fromRGB(128, 128, 128), term = BLACK, termText = Color3.fromRGB(192, 192, 192),
+	},
+	xp = {
+		name = "Windows XP", layout = "win", bev = 0, hill = true, font = Enum.Font.Arial, fb = Enum.Font.ArialBold,
+		desk = {Color3.fromRGB(58, 123, 213), Color3.fromRGB(142, 197, 252)},
+		win = Color3.fromRGB(236, 233, 216), text = BLACK, dtext = WHITE,
+		accent = Color3.fromRGB(49, 106, 197), accentText = WHITE,
+		btn = Color3.fromRGB(246, 245, 240), btnText = BLACK,
+		field = WHITE, muted = Color3.fromRGB(102, 102, 102), edge = Color3.fromRGB(0, 60, 116),
+		t1 = Color3.fromRGB(0, 88, 238), t2 = Color3.fromRGB(61, 149, 255), tText = WHITE,
+		chrome = Color3.fromRGB(36, 94, 220), chromeText = WHITE, start = Color3.fromRGB(60, 155, 60),
+		term = BLACK, termText = Color3.fromRGB(192, 192, 192),
+	},
+}
+local TH = THEMES[CFG.theme]
+
+----------------------------------------------------------------
+-- TEXTOS (pt · en · es)
+----------------------------------------------------------------
+local STR = {
+	activities = {"Atividades", "Activities", "Actividades"},
+	desktop = {"Área de trabalho", "Desktop", "Escritorio"},
+	start = {"Iniciar", "Start", "Inicio"},
+	stop = {"PARAR", "STOP", "PARAR"},
+	play = {"TOCAR", "PLAY", "PLAY"},
+	back = {"Voltar", "Back", "Volver"},
+	go = {"Ir", "Go", "Ir"},
+	copy = {"Copiar", "Copy", "Copiar"},
+	copied = {"Copiado!", "Copied!", "¡Copiado!"},
+	noclip = {"Sem clipboard", "No clipboard", "Sin portapapeles"},
+	send = {"Enviar", "Send", "Enviar"},
+	a_term = {"Terminal", "Terminal", "Terminal"},
+	a_vel = {"Velocidade", "Speed", "Velocidad"},
+	a_clk = {"Auto click", "Auto click", "Auto clic"},
+	a_tp = {"Teletransporte", "Teleport", "Teletransporte"},
+	a_aud = {"Áudio", "Audio", "Audio"},
+	a_mus = {"Música", "Music", "Música"},
+	a_chat = {"Chat Bot", "Chat Bot", "Chat Bot"},
+	a_web = {"Navegador", "Browser", "Navegador"},
+	a_srv = {"Servidores", "Servers", "Servidores"},
+	a_games = {"Jogos", "Games", "Juegos"},
+	a_cfg = {"Configurações", "Settings", "Ajustes"},
+	t_hint = {"Digite 'help' para ver os comandos.", "Type 'help' to see the commands.", "Escribe 'help' para ver los comandos."},
+	t_help = {"comandos: help, ls, clear, whoami, date, uname, echo, abrir <app>, exit", "commands: help, ls, clear, whoami, date, uname, echo, abrir <app>, exit", "comandos: help, ls, clear, whoami, date, uname, echo, abrir <app>, exit"},
+	t_nf = {"comando não encontrado: ", "command not found: ", "comando no encontrado: "},
+	t_nfapp = {"app não encontrado: ", "app not found: ", "app no encontrado: "},
+	t_ph = {"digite um comando", "type a command", "escribe un comando"},
+	v_speed = {"VELOCIDADE", "SPEED", "VELOCIDAD"},
+	v_jump = {"PULO", "JUMP", "SALTO"},
+	v_extra = {"PULOS EXTRA", "EXTRA JUMPS", "SALTOS EXTRA"},
+	v_air = {"pulo extra funciona no ar", "extra jump works in the air", "el salto extra funciona en el aire"},
+	v_grav = {"GRAVIDADE BAIXA", "LOW GRAVITY", "GRAVEDAD BAJA"},
+	c_ball = {"BOLA", "BALL", "BOLA"},
+	c_click = {"CLICAR", "CLICK", "CLIC"},
+	c_drag = {"arraste a bola sobre o alvo", "drag the ball over the target", "arrastra la bola sobre el objetivo"},
+	c_first = {"ative a bola primeiro", "enable the ball first", "activa la bola primero"},
+	c_int = {"INTERVALO: %.1fs", "INTERVAL: %.1fs", "INTERVALO: %.1fs"},
+	tp_click = {"ative e clique no mapa", "enable and click on the map", "activa y haz clic en el mapa"},
+	tp_cd = {"espera de %.1fs entre usos", "%.1fs cooldown between uses", "espera de %.1fs entre usos"},
+	tp_ready = {"PRONTO", "READY", "LISTO"},
+	tp_wait = {"AGUARDE %.1fs", "WAIT %.1fs", "ESPERE %.1fs"},
+	au_det = {"DETECTAR", "DETECT", "DETECTAR"},
+	au_rad = {"RAIO", "RADIUS", "RADIO"},
+	au_clr = {"LIMPAR", "CLEAR", "LIMPIAR"},
+	au_playing = {"TOCANDO %s", "PLAYING %s", "SONANDO %s"},
+	au_copied = {"ID COPIADO: %s", "ID COPIED: %s", "ID COPIADO: %s"},
+	au_stopped = {"MÚSICA PARADA", "MUSIC STOPPED", "MÚSICA DETENIDA"},
+	au_song = {"Música", "Music", "Música"},
+	m_ph = {"ID do áudio (Boombox)", "Audio ID (Boombox)", "ID del audio (Boombox)"},
+	m_vol = {"Volume", "Volume", "Volumen"},
+	m_now = {"Tocando: ID %s", "Playing: ID %s", "Sonando: ID %s"},
+	m_idle = {"Parado", "Stopped", "Detenido"},
+	m_bad = {"ID inválido. Use só números.", "Invalid ID. Numbers only.", "ID inválido. Usa solo números."},
+	m_load = {"Carregando o ID %s...", "Loading ID %s...", "Cargando el ID %s..."},
+	m_fail = {"Este ID não carregou.", "This ID did not load.", "Este ID no cargó."},
+	ch_key = {"Coloque sua API key", "Enter your API key", "Ingresa tu API key"},
+	ch_nokey = {"Não tem uma? Peça ajuda na comunidade:", "No key? Ask the community:", "¿No tienes una? Pide ayuda a la comunidad:"},
+	ch_bad = {"Isso não é uma API key válida.", "That is not a valid API key.", "Eso no es una API key válida."},
+	ch_go = {"Continuar", "Continue", "Continuar"},
+	ch_tab1 = {"Chat", "Chat", "Chat"},
+	ch_tab2 = {"Jogo", "Game", "Juego"},
+	ch_new = {"Nova", "New", "Nueva"},
+	ch_inf = {"Inferior", "Lower", "Inferior"},
+	ch_med = {"Médio", "Medium", "Medio"},
+	ch_ph = {"Converse comigo...", "Talk to me...", "Háblame..."},
+	ch_hello = {"Oi! Pode conversar ou pedir dicas.", "Hi! Chat with me or ask for tips.", "¡Hola! Puedes conversar o pedir consejos."},
+	ch_newc = {"Conversa nova. Pode perguntar!", "New chat. Ask away!", "Conversación nueva. ¡Pregunta!"},
+	ch_think = {"pensando...", "thinking...", "pensando..."},
+	ch_fail = {"Não consegui responder.", "Could not answer.", "No pude responder."},
+	ch_pl = {"MODO JOGADOR", "PLAYER MODE", "MODO JUGADOR"},
+	ch_idle = {"Ligue o modo jogador para ver o chat do servidor.", "Turn on player mode to see the server chat.", "Activa el modo jugador para ver el chat."},
+	ch_gen = {"Gerando resposta...", "Generating reply...", "Generando respuesta..."},
+	ch_tap = {"Toque em + numa mensagem para responder ou perguntar.", "Tap + on a message to answer or ask.", "Toca + en un mensaje para responder o preguntar."},
+	ch_pop = {"Resposta ou pergunta?", "Answer or question?", "¿Respuesta o pregunta?"},
+	ch_ans = {"Resposta", "Answer", "Respuesta"},
+	ch_ask = {"Pergunta", "Question", "Pregunta"},
+	ch_paste = {"Colar no chat", "Paste in chat", "Pegar en el chat"},
+	ch_nosend = {"Não consegui enviar neste jogo.", "Could not send in this game.", "No pude enviar en este juego."},
+	ch_queue = {"na fila", "in queue", "en cola"},
+	w_ph = {"endereço ou pesquisa", "address or search", "dirección o búsqueda"},
+	w_hint = {"Digite um endereço (ex: roblox.com) ou pesquise algo.", "Type an address (e.g. roblox.com) or search.", "Escribe una dirección (ej: roblox.com) o busca algo."},
+	w_load = {"Carregando...", "Loading...", "Cargando..."},
+	w_fail = {"Falha ao abrir.", "Failed to open.", "Error al abrir."},
+	w_none = {"Nada encontrado.", "Nothing found.", "No se encontró nada."},
+	w_ok = {"Página carregada.", "Page loaded.", "Página cargada."},
+	w_res = {"%d resultados", "%d results", "%d resultados"},
+	w_nreq = {"Sem request no executor.", "No request in the executor.", "Sin request en el ejecutor."},
+	s_fetch = {"Buscando servidores...", "Fetching servers...", "Buscando servidores..."},
+	s_err = {"Não consegui listar os servidores.", "Could not list the servers.", "No pude listar los servidores."},
+	s_found = {"%d servidores encontrados.", "%d servers found.", "%d servidores encontrados."},
+	s_refresh = {"Atualizar", "Refresh", "Actualizar"},
+	s_rand = {"Aleatório", "Random", "Aleatorio"},
+	s_randinfo = {"Pessoas: aleatório · Criadores: Por sua conta em risco", "Players: random · Creators: At your own risk", "Jugadores: aleatorio · Creadores: Por tu cuenta y riesgo"},
+	s_about = {"Sobre", "About", "Info"},
+	s_srv = {"Servidor %d · %d/%d", "Server %d · %d/%d", "Servidor %d · %d/%d"},
+	s_info = {"Pessoas: %d/%d · ID: %s", "Players: %d/%d · ID: %s", "Jugadores: %d/%d · ID: %s"},
+	s_full = {"Nenhum servidor livre.", "No free server.", "No hay servidores libres."},
+	s_nojoin = {"Não consegui entrar nesse servidor.", "Could not join that server.", "No pude entrar a ese servidor."},
+	g_cars = {"Carros", "Cars", "Autos"},
+	g_snake = {"Cobrinha", "Snake", "Serpiente"},
+	g_quiz = {"Perguntas", "Quiz", "Preguntas"},
+	g_score = {"Pontos: %d", "Score: %d", "Puntos: %d"},
+	g_over = {"FIM DE JOGO", "GAME OVER", "FIN DEL JUEGO"},
+	g_restart = {"Reiniciar", "Restart", "Reiniciar"},
+	g_ok = {"Acertou!", "Correct!", "¡Correcto!"},
+	g_bad = {"Errou!", "Wrong!", "¡Incorrecto!"},
+	g_end = {"Fim! Acertos: %d/%d", "Done! Correct: %d/%d", "¡Fin! Aciertos: %d/%d"},
+	cfg_lang = {"Idioma (muda o sistema todo)", "Language (changes the whole system)", "Idioma (cambia todo el sistema)"},
+	cfg_theme = {"Tema", "Theme", "Tema"},
+	cfg_bg = {"Música de fundo", "Background music", "Música de fondo"},
+	cfg_on = {"LIGADA", "ON", "ACTIVADA"},
+	cfg_off = {"DESLIGADA", "OFF", "DESACTIVADA"},
+	cfg_id = {"ID da música suave (só números)", "Soft music ID (numbers only)", "ID de la música suave (solo números)"},
+	cfg_apply = {"Aplicar", "Apply", "Aplicar"},
+	cfg_saved = {"Configuração aplicada.", "Settings applied.", "Configuración aplicada."},
+	b_mount = {"Montando /workspace", "Mounting /workspace", "Montando /workspace"},
+	b_sound = {"Iniciando serviço de som", "Starting sound service", "Iniciando servicio de sonido"},
+	b_net = {"Rede (request) disponível", "Network (request) available", "Red (request) disponible"},
+	b_nonet = {"Rede: executor sem request", "Network: executor has no request", "Red: el ejecutor no tiene request"},
+	b_apps = {"Carregando apps e jogos", "Loading apps and games", "Cargando apps y juegos"},
+	b_hi = {"Bem-vindo, %s!", "Welcome, %s!", "¡Bienvenido, %s!"},
+}
+
+local function tr(k)
+	local v = STR[k]
+	return v and v[CFG.lang] or k
+end
+
+-- perguntas do quiz, uma lista por idioma: {pergunta, opções, índice da certa}
+local QUIZ = {
+	{
+		{"Qual é a capital do Brasil?", {"Rio de Janeiro", "São Paulo", "Brasília", "Salvador"}, 3},
+		{"Quantos lados tem um hexágono?", {"5", "6", "7", "8"}, 2},
+		{"Qual planeta é o mais próximo do Sol?", {"Vênus", "Terra", "Mercúrio", "Marte"}, 3},
+		{"Quanto é 12 x 12?", {"124", "144", "132", "156"}, 2},
+	},
+	{
+		{"What is the capital of Australia?", {"Sydney", "Canberra", "Melbourne", "Perth"}, 2},
+		{"How many legs does a spider have?", {"6", "8", "10", "12"}, 2},
+		{"Which planet is known as the Red Planet?", {"Venus", "Jupiter", "Mars", "Saturn"}, 3},
+		{"What is 9 x 7?", {"63", "56", "72", "54"}, 1},
+	},
+	{
+		{"¿Cuál es la capital de Francia?", {"Lyon", "Marsella", "París", "Niza"}, 3},
+		{"¿Cuántos continentes hay?", {"5", "6", "7", "8"}, 3},
+		{"¿Qué océano es el más grande?", {"Atlántico", "Índico", "Ártico", "Pacífico"}, 4},
+		{"¿Cuánto es 8 x 6?", {"42", "48", "54", "46"}, 2},
+	},
+}
+
+----------------------------------------------------------------
+-- HELPERS
+----------------------------------------------------------------
+local dragFn = nil
+
+local function new(c, p, parent)
+	local o = Instance.new(c)
+	for k, v in pairs(p or {}) do o[k] = v end
+	if parent then o.Parent = parent end
+	return o
+end
+
+local function sfx(id, vol)
+	if not id then return end
+	local s = Instance.new("Sound")
+	s.SoundId = id
+	s.Volume = vol or 0.5
+	s.Parent = SoundService
+	s:Play()
+	Debris:AddItem(s, 5)
+end
+
+local function stroke(o, c)
+	return new("UIStroke", {Color = c or TH.edge, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border}, o)
+end
+
+local function bevel(o, t, up)
+	local a, b = TH.hi or WHITE, TH.sh or Color3.fromRGB(128, 128, 128)
+	if not up then a, b = b, a end
+	new("Frame", {Size = UDim2.new(1, 0, 0, t), BackgroundColor3 = a, BorderSizePixel = 0}, o)
+	new("Frame", {Size = UDim2.new(0, t, 1, 0), BackgroundColor3 = a, BorderSizePixel = 0}, o)
+	new("Frame", {Size = UDim2.new(1, 0, 0, t), Position = UDim2.new(0, 0, 1, -t), BackgroundColor3 = b, BorderSizePixel = 0}, o)
+	new("Frame", {Size = UDim2.new(0, t, 1, 0), Position = UDim2.new(1, -t, 0, 0), BackgroundColor3 = b, BorderSizePixel = 0}, o)
+end
+
+local function box(o, up)
+	if TH.bev > 0 then bevel(o, TH.bev, up) else stroke(o) end
+end
+
+local function lbl(parent, p)
+	local d = {BackgroundTransparency = 1, BorderSizePixel = 0, Font = TH.font, TextSize = 11,
+		TextColor3 = TH.text, TextXAlignment = Enum.TextXAlignment.Left, Text = ""}
+	for k, v in pairs(p or {}) do d[k] = v end
+	return new("TextLabel", d, parent)
+end
+
+local function btn(parent, p, text, onClick)
+	local d = {AutoButtonColor = false, BorderSizePixel = 0, BackgroundColor3 = TH.btn, TextColor3 = TH.btnText,
+		Font = TH.font, TextSize = 11, TextWrapped = true, Text = text or ""}
+	for k, v in pairs(p or {}) do d[k] = v end
+	local b = new("TextButton", d, parent)
+	if d.BackgroundTransparency ~= 1 then box(b, true) end
+	b.MouseButton1Click:Connect(function()
+		sfx(SONS.clique, 0.3)
+		if onClick then onClick() end
+	end)
+	return b
+end
+
+local function plainBtn(parent, p, onClick)
+	local b = new("TextButton", p, parent)
+	b.AutoButtonColor = false
+	b.MouseButton1Click:Connect(function()
+		sfx(SONS.clique, 0.3)
+		if onClick then onClick() end
+	end)
+	return b
+end
+
+local function field(parent, p)
+	local d = {BackgroundColor3 = TH.field, BorderSizePixel = 0, TextColor3 = TH.text, PlaceholderColor3 = TH.muted,
+		Font = Enum.Font.Code, TextSize = 11, Text = "", ClearTextOnFocus = false, TextXAlignment = Enum.TextXAlignment.Left}
+	for k, v in pairs(p or {}) do d[k] = v end
+	local t = new("TextBox", d, parent)
+	box(t, false)
+	return t
+end
+
+local function setOn(b, on, text)
+	b.Text = text
+	b.BackgroundColor3 = on and TH.accent or TH.btn
+	b.TextColor3 = on and TH.accentText or TH.btnText
+end
+
+local function esc(s)
+	return (tostring(s):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"))
+end
+
+local function col(hex, s)
+	return '<font color="#' .. hex .. '">' .. esc(s) .. '</font>'
+end
+
+local function cut(s, n)
+	local p = utf8.offset(s, n + 1)
+	if p then return s:sub(1, p - 1) end
+	return s
+end
+
+local function clean(t)
+	return (t:gsub("%*%*", ""):gsub("#+ ", ""))
+end
+
+local function keyValid(s)
+	return #s >= 25 and s:sub(1, 3) == "sk-" and not s:find("%s")
+end
+
+local function mmss(t)
+	t = math.max(0, math.floor(t or 0))
+	return string.format("%d:%02d", math.floor(t / 60), t % 60)
+end
+
+local function isPress(i)
+	return i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch
+end
+
+-- um único arraste ativo por vez (janelas, bolinha, sliders)
+UIS.InputChanged:Connect(function(i)
+	if dragFn and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+		dragFn(i)
+	end
+end)
+UIS.InputEnded:Connect(function(i)
+	if isPress(i) then dragFn = nil end
+end)
+
+local function draggable(handle, target, bounds, onDown)
+	local info = {moved = 0}
+	handle.InputBegan:Connect(function(i)
+		if not isPress(i) then return end
+		local origin = i.Position
+		local p = target.Position
+		local sx, sy, ox, oy = p.X.Offset, p.Y.Offset, p.X.Scale, p.Y.Scale
+		info.moved = 0
+		if onDown then onDown() end
+		dragFn = function(m)
+			if not target.Parent then
+				dragFn = nil
+				return
+			end
+			local d = m.Position - origin
+			info.moved = math.max(info.moved, math.abs(d.X) + math.abs(d.Y))
+			local nx, ny = sx + d.X, sy + d.Y
+			if bounds then
+				nx = math.clamp(nx, 0, math.max(0, bounds.AbsoluteSize.X - target.AbsoluteSize.X))
+				ny = math.clamp(ny, 0, math.max(0, bounds.AbsoluteSize.Y - target.AbsoluteSize.Y))
+			end
+			target.Position = UDim2.new(ox, nx, oy, ny)
+		end
+	end)
+	return info
+end
+
+-- slider: retorna {show = função que só move a barra (sem disparar onChange)}
+local function slider(parent, x, y, w, mn, mx, step, init, onChange)
+	local track = new("Frame", {Position = UDim2.fromOffset(x, y + 7), Size = UDim2.fromOffset(w, 6),
+		BackgroundColor3 = TH.field, BorderSizePixel = 0}, parent)
+	local fill = new("Frame", {Size = UDim2.new(0, 0, 1, 0), BackgroundColor3 = TH.accent, BorderSizePixel = 0}, track)
+	local knob = new("Frame", {Size = UDim2.fromOffset(8, 14), AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0, 0, 0.5, 0), BackgroundColor3 = TH.accent, BorderSizePixel = 0}, track)
+	local hit = new("TextButton", {Position = UDim2.fromOffset(x, y), Size = UDim2.fromOffset(w, 22),
+		BackgroundTransparency = 1, Text = "", AutoButtonColor = false}, parent)
+	local val
+	local function show(p)
+		fill.Size = UDim2.new(p, 0, 1, 0)
+		knob.Position = UDim2.new(p, 0, 0.5, 0)
+	end
+	local function set(a)
+		a = math.clamp(a, 0, 1)
+		local v = mn + math.floor(a * (mx - mn) / step + 0.5) * step
+		show((v - mn) / (mx - mn))
+		if v ~= val then
+			val = v
+			if onChange then onChange(v) end
+		end
+	end
+	hit.InputBegan:Connect(function(i)
+		if not isPress(i) then return end
+		set((i.Position.X - track.AbsolutePosition.X) / math.max(1, track.AbsoluteSize.X))
+		dragFn = function(m)
+			set((m.Position.X - track.AbsolutePosition.X) / math.max(1, track.AbsoluteSize.X))
+		end
+	end)
+	set((init - mn) / (mx - mn))
+	return {show = show}
+end
+
+local function boom(parent, x, y)
+	for i = 1, 12 do
+		local s = math.random(3, 5)
+		local p = new("Frame", {AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(x, y),
+			Size = UDim2.fromOffset(s, s), BackgroundColor3 = TH.accent, BorderSizePixel = 0, ZIndex = 50}, parent)
+		local a, d = math.rad(i * 30), math.random(25, 60)
+		TweenService:Create(p, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Position = UDim2.fromOffset(x + math.cos(a) * d, y + math.sin(a) * d),
+			BackgroundTransparency = 1,
+		}):Play()
+		Debris:AddItem(p, 0.6)
+	end
+	sfx(SONS.explosao, 0.5)
+end
+
+----------------------------------------------------------------
+-- ESTADO E JANELA PRINCIPAL
+----------------------------------------------------------------
+local alive = true
+local APPS, APPID = {}, {}
+local openWins, cascade, zTop = {}, 0, 5
+local desk, clockL, startMenu, bubble
+local bubbleDrag
+
+local gui = new("ScreenGui", {Name = "LinuxSim", ResetOnSpawn = false, IgnoreGuiInset = true,
+	DisplayOrder = 999, ZIndexBehavior = Enum.ZIndexBehavior.Sibling})
+local okH, hui = pcall(gethui)
+if not (okH and hui and pcall(function() gui.Parent = hui end)) then
+	if not pcall(function() gui.Parent = game:GetService("CoreGui") end) then
+		gui.Parent = LP:WaitForChild("PlayerGui")
+	end
+end
+for _, o in ipairs(gui.Parent:GetChildren()) do
+	if o.Name == "LinuxSim" and o ~= gui then o:Destroy() end
+end
+
+local cam = workspace.CurrentCamera
+local vs = cam and cam.ViewportSize or Vector2.new(1280, 720)
+local win = new("Frame", {Name = "Janela", Size = UDim2.fromOffset(W, H),
+	Position = UDim2.fromOffset(math.floor((vs.X - W) / 2), math.floor((vs.Y - H) / 2)),
+	BackgroundColor3 = TH.win, BorderSizePixel = 0, ClipsDescendants = true, Active = true}, gui)
+
+-- música: boombox (campo ID no app Música) e fundo (Configurações)
+local music = new("Sound", {Name = "BoomboxLinux", Looped = true, Volume = 0.5}, SoundService)
+local bgSound = new("Sound", {Name = "FundoLinux", Looped = true, Volume = 0.3}, SoundService)
+local musicId, musicErr = nil, nil
+
+----------------------------------------------------------------
+-- SISTEMA DE JANELAS
+----------------------------------------------------------------
+local function refreshDock()
+	for _, a in ipairs(APPS) do
+		if a.ind then a.ind.Visible = openWins[a.id] ~= nil end
+	end
+end
+
+local function focus(f)
+	zTop = zTop + 1
+	f.ZIndex = zTop
+end
+
+local function closeApp(id)
+	local rec = openWins[id]
+	if not rec then return end
+	openWins[id] = nil
+	if rec.stop then pcall(rec.stop) end
+	rec.frame:Destroy()
+	refreshDock()
+end
+
+local function openApp(app)
+	local rec = openWins[app.id]
+	if rec then
+		focus(rec.frame)
+		return
+	end
+	cascade = cascade % 3 + 1
+	local linux = TH.layout == "linux"
+	local f = new("Frame", {Name = app.id, Size = UDim2.fromOffset(WIN_W, app.h),
+		Position = UDim2.fromOffset((linux and (DOCK_W + 8) or 12) + cascade * 6, (linux and 6 or 4) + cascade * 6),
+		BackgroundColor3 = TH.win, BorderSizePixel = 0, ClipsDescendants = true}, desk)
+	box(f, true)
+	focus(f)
+	local bar = new("Frame", {Size = UDim2.new(1, 0, 0, 18), BorderSizePixel = 0, Active = true,
+		BackgroundColor3 = (linux or TH.t1 == TH.t2) and TH.t1 or WHITE}, f)
+	if not linux and TH.t1 ~= TH.t2 then
+		new("UIGradient", {Color = ColorSequence.new(TH.t1, TH.t2)}, bar)
+	end
+	lbl(bar, {Position = UDim2.fromOffset(5, 0), Size = UDim2.new(1, -24, 1, 0), Font = TH.fb, TextSize = 10,
+		TextColor3 = TH.tText, Text = tr(app.key)})
+	btn(bar, {Position = UDim2.new(1, -17, 0, 2), Size = UDim2.fromOffset(15, 14), TextSize = 9},
+		"X", function() closeApp(app.id) end)
+	local content = new("Frame", {Position = UDim2.fromOffset(0, 18), Size = UDim2.new(1, 0, 1, -18),
+		BackgroundTransparency = 1}, f)
+	draggable(bar, f, desk, function() focus(f) end)
+
+	rec = {frame = f}
+	openWins[app.id] = rec
+	local ok, stop = pcall(app.build, content, {close = function() closeApp(app.id) end})
+	if ok then
+		if type(stop) == "function" then rec.stop = stop end
+	else
+		lbl(content, {Position = UDim2.fromOffset(6, 6), Size = UDim2.new(1, -12, 1, -12), TextWrapped = true,
+			TextYAlignment = Enum.TextYAlignment.Top, TextColor3 = RED, Text = "[FAILED] " .. tostring(stop)})
+		sfx(SONS.falha, 0.6)
+	end
+	refreshDock()
+	sfx(SONS.abrir, 0.4)
+end
+
+----------------------------------------------------------------
+-- CHAT DO SERVIDOR E IA
+----------------------------------------------------------------
+local serverLog, serverVer = {}, 0
+local function pushServer(name, text)
+	if not text or text == "" then return end
+	table.insert(serverLog, {name = name, text = text})
+	if #serverLog > 60 then table.remove(serverLog, 1) end
+	serverVer = serverVer + 1
+end
+
+if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+	TextChatService.MessageReceived:Connect(function(m)
+		local src = m.TextSource
+		if not src then return end
+		local p = Players:GetPlayerByUserId(src.UserId)
+		pushServer(p and p.DisplayName or "?", m.Text)
+	end)
+else
+	local function hook(p)
+		p.Chatted:Connect(function(msg) pushServer(p.DisplayName, msg) end)
+	end
+	for _, p in ipairs(Players:GetPlayers()) do hook(p) end
+	Players.PlayerAdded:Connect(hook)
+end
+
+local function sendToChat(msg)
+	msg = cut(msg, 200)
+	if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+		local ch = TextChatService:FindFirstChild("TextChannels")
+		local gen = ch and ch:FindFirstChild("RBXGeneral")
+		return (gen and pcall(function() gen:SendAsync(msg) end)) or false
+	end
+	local ev = RS:FindFirstChild("DefaultChatSystemChatEvents")
+	local say = ev and ev:FindFirstChild("SayMessageRequest")
+	return (say and pcall(function() say:FireServer(msg, "All") end)) or false
+end
+
+local MODE_RULES = {
+	inferior = "Answer in at most 2 short sentences, straight to the point.",
+	medio = "Answer in a normal, clear and balanced way.",
+	hard = "Think carefully and answer in a smart, complete and well-reasoned way.",
+}
+local MODE_TOKENS = {inferior = 4096, medio = 8192, hard = 16384}
+
+local function askAI(system, msgs, mode, cb)
+	mode = mode or "medio"
+	if not httpRequest then return cb(nil, "no executor request") end
+	if API_KEY == "" then return cb(nil, "missing API key") end
+	local done = false
+	local function finish(text, err)
+		if done then return end
+		done = true
+		cb(text, err)
+	end
+	task.delay(TIMEOUT, function() finish(nil, "timeout") end)
+	local input = {}
+	for _, m in ipairs(msgs) do
+		table.insert(input, {role = m.role, content = m.text})
+	end
+	task.spawn(function()
+		local ok, res = pcall(httpRequest, {
+			Url = MODEL_URL, Method = "POST",
+			Headers = {["Content-Type"] = "application/json", ["Authorization"] = "Bearer " .. API_KEY},
+			Body = HttpService:JSONEncode({
+				model = MODEL_NAME, instructions = system .. "\n\n" .. MODE_RULES[mode],
+				input = input, max_output_tokens = MODE_TOKENS[mode], store = false,
+			}),
+		})
+		if not ok or type(res) ~= "table" then return finish(nil, "no response") end
+		local okj, data = pcall(HttpService.JSONDecode, HttpService, res.Body or "")
+		if not okj or type(data) ~= "table" then
+			return finish(nil, "invalid response (HTTP " .. tostring(res.StatusCode) .. ")")
+		end
+		if data.error then
+			local emsg = type(data.error) == "table" and data.error.message or data.error
+			return finish(nil, "API: " .. tostring(emsg))
+		end
+		local out = {}
+		if type(data.output) == "table" then
+			for _, item in ipairs(data.output) do
+				if item.type == "message" and type(item.content) == "table" then
+					for _, c in ipairs(item.content) do
+						if c.type == "output_text" and type(c.text) == "string" then
+							table.insert(out, c.text)
+						end
+					end
+				end
+			end
+		end
+		local text = table.concat(out)
+		if text == "" and type(data.output_text) == "string" then text = data.output_text end
+		if text == "" then return finish(nil, "empty reply") end
+		finish(text)
+	end)
+end
+
+----------------------------------------------------------------
+-- MÚSICA DE FUNDO, PARAR, MINIMIZAR E SAIR
+----------------------------------------------------------------
+local function applyBg()
+	if CFG.bgOn and CFG.bgId ~= "" then
+		bgSound.SoundId = "rbxassetid://" .. CFG.bgId
+		bgSound:Play()
+	else
+		bgSound:Stop()
+	end
+end
+
+local function stopMusic()
+	CFG.bgOn = false
+	bgSound:Stop()
+	music:Stop()
+end
+
+local function minimize()
+	bubble.Position = UDim2.fromOffset(win.AbsolutePosition.X + W / 2 - 20, win.AbsolutePosition.Y + H / 2 - 20)
+	win.Visible = false
+	bubble.Visible = true
+end
+
+local function quitAll()
+	alive = false
+	local ids = {}
+	for id in pairs(openWins) do table.insert(ids, id) end
+	for _, id in ipairs(ids) do closeApp(id) end
+	bgSound:Stop()
+	music:Stop()
+	boom(win, W / 2, H / 2)
+	task.wait(0.6)
+	gui:Destroy()
+end
+
+bubble = new("TextButton", {Name = "Bolinha", Size = UDim2.fromOffset(44, 44), BackgroundColor3 = TH.accent,
+	BorderSizePixel = 0, AutoButtonColor = false, Text = "U", Font = Enum.Font.GothamBlack, TextSize = 18,
+	TextColor3 = WHITE, Visible = false, Active = true}, gui)
+new("UICorner", {CornerRadius = UDim.new(1, 0)}, bubble)
+bubbleDrag = draggable(bubble, bubble)
+bubble.MouseButton1Click:Connect(function()
+	if bubbleDrag.moved > 6 then return end
+	bubble.Visible = false
+	win.Visible = true
+end)
+
+----------------------------------------------------------------
+-- SHELL: LINUX (barra + dock) OU WINDOWS (barra de título + barra de tarefas)
+----------------------------------------------------------------
+local function buildShell()
+	TH = THEMES[CFG.theme]
+	for _, a in ipairs(APPS) do a.ind = nil end
+	win:ClearAllChildren()
+	win.BackgroundColor3 = TH.win
+	bubble.BackgroundColor3 = TH.accent
+
+	if TH.layout == "linux" then
+		local bar = new("Frame", {Size = UDim2.new(1, 0, 0, TOP_H), BackgroundColor3 = TH.chrome, BorderSizePixel = 0, Active = true}, win)
+		lbl(bar, {Position = UDim2.fromOffset(8, 0), Size = UDim2.fromOffset(90, TOP_H), Font = TH.fb,
+			Text = tr("activities"), TextColor3 = TH.chromeText})
+		clockL = lbl(bar, {Size = UDim2.new(1, 0, 1, 0), Font = TH.fb, TextXAlignment = Enum.TextXAlignment.Center,
+			TextColor3 = TH.chromeText})
+		btn(bar, {Position = UDim2.new(1, -92, 0, 2), Size = UDim2.fromOffset(54, 18), BackgroundColor3 = TH.accent,
+			TextColor3 = TH.accentText, TextSize = 10}, tr("stop"), stopMusic)
+		btn(bar, {Position = UDim2.new(1, -36, 0, 0), Size = UDim2.fromOffset(16, TOP_H), BackgroundTransparency = 1,
+			TextColor3 = TH.chromeText}, "—", minimize)
+		btn(bar, {Position = UDim2.new(1, -18, 0, 0), Size = UDim2.fromOffset(18, TOP_H), BackgroundColor3 = RED,
+			TextColor3 = WHITE}, "X", quitAll)
+		draggable(bar, win)
+
+		desk = new("Frame", {Position = UDim2.fromOffset(0, TOP_H), Size = UDim2.new(1, 0, 1, -TOP_H),
+			BackgroundColor3 = WHITE, BorderSizePixel = 0, ClipsDescendants = true}, win)
+		new("UIGradient", {Color = ColorSequence.new(TH.desk[1], TH.desk[2]), Rotation = 90}, desk)
+		local dock = new("Frame", {Size = UDim2.new(0, DOCK_W, 1, 0), BackgroundColor3 = TH.dock, BorderSizePixel = 0, ZIndex = 2}, desk)
+		for i, app in ipairs(APPS) do
+			local y = 6 + (i - 1) * 27 + ((i > 6) and 8 or 0)
+			app.ind = new("Frame", {Position = UDim2.fromOffset(0, y + 5), Size = UDim2.fromOffset(3, 14),
+				BackgroundColor3 = TH.text, BorderSizePixel = 0, Visible = false, ZIndex = 3}, dock)
+			btn(dock, {Position = UDim2.fromOffset(6, y), Size = UDim2.fromOffset(24, 24), BackgroundColor3 = app.color,
+				TextColor3 = app.fg, Font = Enum.Font.GothamBlack, TextSize = 8, Text = app.glyph, ZIndex = 3},
+				nil, function() openApp(app) end)
+		end
+	else
+		local bar = new("Frame", {Size = UDim2.new(1, 0, 0, BAR_H), BorderSizePixel = 0, Active = true,
+			BackgroundColor3 = (TH.t1 == TH.t2) and TH.t1 or WHITE}, win)
+		if TH.t1 ~= TH.t2 then new("UIGradient", {Color = ColorSequence.new(TH.t1, TH.t2)}, bar) end
+		lbl(bar, {Position = UDim2.fromOffset(5, 0), Size = UDim2.new(1, -50, 1, 0), Font = TH.fb, TextSize = 10,
+			TextColor3 = TH.tText, Text = tr("desktop") .. " — " .. TH.name})
+		btn(bar, {Position = UDim2.new(1, -36, 0, 3), Size = UDim2.fromOffset(16, 14), TextSize = 10}, "_", minimize)
+		btn(bar, {Position = UDim2.new(1, -18, 0, 3), Size = UDim2.fromOffset(16, 14), TextSize = 10}, "X", quitAll)
+		draggable(bar, win)
+
+		desk = new("Frame", {Position = UDim2.fromOffset(0, BAR_H), Size = UDim2.new(1, 0, 1, -(BAR_H + TASK_H)),
+			BackgroundColor3 = TH.desk[1], BorderSizePixel = 0, ClipsDescendants = true}, win)
+		if TH.hill then
+			desk.BackgroundColor3 = WHITE
+			new("UIGradient", {Color = ColorSequence.new(TH.desk[1], TH.desk[2]), Rotation = 90}, desk)
+			local hill = new("Frame", {Size = UDim2.fromOffset(420, 240), Position = UDim2.new(0.5, -210, 1, -110),
+				BackgroundColor3 = Color3.fromRGB(78, 154, 45), BorderSizePixel = 0}, desk)
+			new("UICorner", {CornerRadius = UDim.new(0.5, 0)}, hill)
+		end
+		for i, app in ipairs(APPS) do
+			local x, y = 10 + ((i - 1) % 4) * 66, 8 + math.floor((i - 1) / 4) * 66
+			plainBtn(desk, {Position = UDim2.fromOffset(x + 8, y), Size = UDim2.fromOffset(36, 36), BackgroundColor3 = app.color,
+				TextColor3 = app.fg, Font = Enum.Font.GothamBlack, TextSize = 9, Text = app.glyph}, function() openApp(app) end)
+			lbl(desk, {Position = UDim2.fromOffset(x - 6, y + 38), Size = UDim2.fromOffset(64, 24), TextSize = 9,
+				TextWrapped = true, TextColor3 = TH.dtext, TextXAlignment = Enum.TextXAlignment.Center,
+				TextYAlignment = Enum.TextYAlignment.Top, Text = tr(app.key)})
+		end
+
+		local tb = new("Frame", {Position = UDim2.new(0, 0, 1, -TASK_H), Size = UDim2.new(1, 0, 0, TASK_H),
+			BackgroundColor3 = TH.chrome, BorderSizePixel = 0, ZIndex = 4}, win)
+		if TH.bev > 0 then bevel(tb, 1, true) end
+		startMenu = new("Frame", {Position = UDim2.new(0, 2, 1, -(TASK_H + #APPS * 20 + 10)),
+			Size = UDim2.fromOffset(150, #APPS * 20 + 6), BackgroundColor3 = TH.win, BorderSizePixel = 0,
+			Visible = false, ZIndex = 10}, win)
+		box(startMenu, true)
+		for i, app in ipairs(APPS) do
+			btn(startMenu, {Position = UDim2.fromOffset(3, 3 + (i - 1) * 20), Size = UDim2.new(1, -6, 0, 18),
+				TextXAlignment = Enum.TextXAlignment.Left, TextSize = 10, ZIndex = 11}, tr(app.key), function()
+				startMenu.Visible = false
+				openApp(app)
+			end)
+		end
+		btn(tb, {Position = UDim2.fromOffset(2, 3), Size = UDim2.fromOffset(60, TASK_H - 6), BackgroundColor3 = TH.start,
+			TextColor3 = TH.chromeText, Font = TH.fb, TextSize = 11, ZIndex = 5}, tr("start"), function()
+			startMenu.Visible = not startMenu.Visible
+		end)
+		btn(tb, {Position = UDim2.new(1, -122, 0, 3), Size = UDim2.fromOffset(60, TASK_H - 6), TextSize = 10, ZIndex = 5},
+			tr("stop"), stopMusic)
+		clockL = lbl(tb, {Position = UDim2.new(1, -58, 0, 0), Size = UDim2.fromOffset(56, TASK_H), Font = TH.fb,
+			TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = TH.chromeText, ZIndex = 5})
+	end
+end
+
+local function rebuildShell()
+	local ids = {}
+	for id in pairs(openWins) do table.insert(ids, id) end
+	for _, id in ipairs(ids) do closeApp(id) end
+	buildShell()
+	for _, id in ipairs(ids) do openApp(APPID[id]) end
+end
+
+local function setLang(i)
+	CFG.lang = i
+	task.defer(rebuildShell)
+end
+
+local function setTheme(k)
+	CFG.theme = k
+	task.defer(rebuildShell)
+end
+
+----------------------------------------------------------------
+-- APP: TERMINAL
+----------------------------------------------------------------
+local function buildTerm(body, ctx)
+	local lines = {}
+	local out = new("ScrollingFrame", {Position = UDim2.fromOffset(3, 3), Size = UDim2.new(1, -6, 1, -27),
+		BackgroundColor3 = TH.term, BorderSizePixel = 0, ScrollBarThickness = 3,
+		CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y}, body)
+	local txt = lbl(out, {Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, TextWrapped = true,
+		TextYAlignment = Enum.TextYAlignment.Top, RichText = true, Font = Enum.Font.Code, TextSize = 11,
+		TextColor3 = TH.termText})
+
+	local function say(s)
+		table.insert(lines, s)
+		if #lines > 80 then table.remove(lines, 1) end
+		txt.Text = table.concat(lines, "\n")
+		task.defer(function()
+			if out.Parent then out.CanvasPosition = Vector2.new(0, 1e6) end
+		end)
+	end
+
+	lbl(body, {Position = UDim2.new(0, 4, 1, -22), Size = UDim2.fromOffset(92, 18), Font = Enum.Font.Code,
+		TextSize = 10, TextColor3 = TH.accent, Text = "user@roblox:~$"})
+	local input = field(body, {Position = UDim2.new(0, 96, 1, -22), Size = UDim2.new(1, -100, 0, 18),
+		TextSize = 11, PlaceholderText = tr("t_ph")})
+
+	local cmds = {}
+	function cmds.help() say(tr("t_help")) end
+	function cmds.ls()
+		local t = {}
+		for _, a in ipairs(APPS) do table.insert(t, a.id) end
+		say(table.concat(t, "  "))
+	end
+	function cmds.clear()
+		lines = {}
+		txt.Text = ""
+	end
+	function cmds.whoami() say(LP.Name) end
+	function cmds.date() say(os.date("%d/%m/%Y %H:%M:%S")) end
+	function cmds.uname() say("Linux roblox 6.8.0-roblox #1 SMP x86_64 GNU/Linux") end
+	function cmds.echo(a) say(esc(a)) end
+	function cmds.exit() ctx.close() end
+	function cmds.abrir(a)
+		local app = APPID[(a or ""):lower()]
+		if app then
+			openApp(app)
+			return true
+		end
+		say(col("FF5F5F", tr("t_nfapp") .. (a or "")))
+		return false
+	end
+
+	local function run(raw)
+		local line = raw:match("^%s*(.-)%s*$")
+		if line == "" then return end
+		say(col("E95420", "user@roblox") .. ":~$ " .. esc(line))
+		local cmd, arg = line:match("^(%S+)%s*(.*)$")
+		local f = cmds[cmd:lower()]
+		if not f then
+			say(col("FF5F5F", tr("t_nf") .. cmd))
+			sfx(SONS.falha, 0.5)
+			return
+		end
+		if f(arg) == false then sfx(SONS.falha, 0.5) end
+	end
+
+	input.FocusLost:Connect(function(enter)
+		if enter then
+			local t = input.Text
+			input.Text = ""
+			run(t)
+			input:CaptureFocus()
+		end
+	end)
+
+	say(col("E95420", "Ubuntu Roblox 22.04 LTS") .. " · " .. tr("a_term"))
+	say(tr("t_hint"))
+end
+
+----------------------------------------------------------------
+-- APP: VELOCIDADE
+----------------------------------------------------------------
+local function buildVel(body)
+	local MIN_V, MAX_V, LOW_G, MAX_EX = 30, 90, 60, 20
+	local speed, jump, extra, used, airSince, lastEx = 30, 30, 0, 0, nil, 0
+	local sOn, jOn, gOn = false, false, false
+	local orig = {ws = 16, jp = 50, ujp = true, g = workspace.Gravity}
+	local conns = {}
+	local function hum()
+		local c = LP.Character
+		return c and c:FindFirstChildOfClass("Humanoid")
+	end
+
+	local paint
+	local sB = btn(body, {Position = UDim2.fromOffset(0, 0), Size = UDim2.new(1, 0, 0, 22)}, "", function()
+		sOn = not sOn
+		local h = hum()
+		if sOn then
+			if h then orig.ws = h.WalkSpeed end
+		elseif h then
+			h.WalkSpeed = orig.ws
+		end
+		paint()
+	end)
+	local jB = btn(body, {Position = UDim2.fromOffset(0, 52), Size = UDim2.new(1, 0, 0, 22)}, "", function()
+		jOn = not jOn
+		local h = hum()
+		if jOn then
+			if h then
+				orig.jp = h.JumpPower
+				orig.ujp = h.UseJumpPower
+			end
+		elseif h then
+			h.JumpPower = orig.jp
+			h.UseJumpPower = orig.ujp
+		end
+		paint()
+	end)
+	local gB = btn(body, {Position = UDim2.fromOffset(0, 128), Size = UDim2.new(1, 0, 0, 22)}, "", function()
+		gOn = not gOn
+		if gOn then
+			orig.g = workspace.Gravity
+		else
+			workspace.Gravity = orig.g
+		end
+		paint()
+	end)
+	paint = function()
+		setOn(sB, sOn, tr("v_speed") .. " " .. (sOn and "ON" or "OFF") .. " [" .. speed .. "]")
+		setOn(jB, jOn, tr("v_jump") .. " " .. (jOn and "ON" or "OFF") .. " [" .. jump .. "]")
+		setOn(gB, gOn, tr("v_grav") .. " " .. (gOn and "ON" or "OFF"))
+	end
+
+	slider(body, 0, 26, 240, MIN_V, MAX_V, 1, speed, function(v) speed = v; paint() end)
+	slider(body, 0, 78, 240, MIN_V, MAX_V, 1, jump, function(v) jump = v; paint() end)
+
+	local numL = lbl(body, {Position = UDim2.fromOffset(156, 104), Size = UDim2.fromOffset(30, 18),
+		TextXAlignment = Enum.TextXAlignment.Center, Text = "0"})
+	local function setEx(n)
+		extra = math.clamp(n, 0, MAX_EX)
+		numL.Text = tostring(extra)
+	end
+	lbl(body, {Position = UDim2.fromOffset(0, 106), Size = UDim2.fromOffset(150, 16), Text = tr("v_extra")})
+	btn(body, {Position = UDim2.fromOffset(130, 102), Size = UDim2.fromOffset(22, 22)}, "-", function() setEx(extra - 1) end)
+	btn(body, {Position = UDim2.fromOffset(190, 102), Size = UDim2.fromOffset(22, 22)}, "+", function() setEx(extra + 1) end)
+	lbl(body, {Position = UDim2.fromOffset(0, 154), Size = UDim2.new(1, 0, 0, 14), TextSize = 10, TextColor3 = TH.muted, Text = tr("v_air")})
+
+	table.insert(conns, RunService.Heartbeat:Connect(function()
+		local h = hum()
+		if h then
+			if sOn and h.WalkSpeed ~= speed then h.WalkSpeed = speed end
+			if jOn then
+				if not h.UseJumpPower then h.UseJumpPower = true end
+				if h.JumpPower ~= jump then h.JumpPower = jump end
+			end
+			if h.FloorMaterial ~= Enum.Material.Air then
+				used = 0
+				airSince = nil
+			elseif not airSince then
+				airSince = os.clock()
+			end
+		end
+		if gOn and workspace.Gravity ~= LOW_G then workspace.Gravity = LOW_G end
+	end))
+	table.insert(conns, UIS.JumpRequest:Connect(function()
+		local h = hum()
+		if extra <= 0 or not h or h.Health <= 0 or h.FloorMaterial ~= Enum.Material.Air then return end
+		if not airSince or os.clock() - airSince < 0.12 then return end
+		if os.clock() - lastEx < 0.2 or used >= extra then return end
+		used = used + 1
+		lastEx = os.clock()
+		h:ChangeState(Enum.HumanoidStateType.Jumping)
+	end))
+
+	paint()
+	return function()
+		for _, c in ipairs(conns) do c:Disconnect() end
+		local h = hum()
+		if h then
+			if sOn then h.WalkSpeed = orig.ws end
+			if jOn then
+				h.JumpPower = orig.jp
+				h.UseJumpPower = orig.ujp
+			end
+		end
+		if gOn then workspace.Gravity = orig.g end
+	end
+end
+
+----------------------------------------------------------------
+-- APP: AUTO CLICK
+----------------------------------------------------------------
+local function buildClk(body)
+	local MIN_T, MAX_T = 0.1, 10
+	local interval, clicking, runId = 1, false, 0
+	local ball = new("Frame", {Name = "Alvo", Size = UDim2.fromOffset(24, 24), Position = UDim2.new(0.5, -12, 0.5, -12),
+		BackgroundTransparency = 1, BorderSizePixel = 0, Active = true, Visible = false, ZIndex = 5}, gui)
+	stroke(ball, TH.accent)
+	new("Frame", {Size = UDim2.fromOffset(6, 6), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+		BackgroundColor3 = TH.accent, BorderSizePixel = 0, ZIndex = 6}, ball)
+	draggable(ball, ball)
+
+	local function doClick(x, y)
+		if VIM then
+			local ok = pcall(function()
+				VIM:SendMouseButtonEvent(x, y, 0, true, game, 0)
+				VIM:SendMouseButtonEvent(x, y, 0, false, game, 0)
+			end)
+			if ok then return end
+		end
+		if fireclickdetector then
+			pcall(function()
+				local ray = workspace.CurrentCamera:ViewportPointToRay(x, y)
+				local res = workspace:Raycast(ray.Origin, ray.Direction * 1000)
+				local cd = res and res.Instance:FindFirstChildOfClass("ClickDetector")
+				if cd then fireclickdetector(cd) end
+			end)
+		end
+	end
+
+	local statusL, intL
+	local ballB, clkB
+	local function setClick(on)
+		clicking = on
+		runId = runId + 1
+		local id = runId
+		setOn(clkB, on, tr("c_click") .. " " .. (on and "ON" or "OFF"))
+		if on then
+			task.spawn(function()
+				while clicking and runId == id do
+					local c = ball.AbsolutePosition + ball.AbsoluteSize / 2
+					doClick(c.X, c.Y)
+					task.wait(interval)
+				end
+			end)
+		end
+	end
+	ballB = btn(body, {Position = UDim2.fromOffset(0, 0), Size = UDim2.fromOffset(116, 22)}, "", function()
+		ball.Visible = not ball.Visible
+		setOn(ballB, ball.Visible, tr("c_ball") .. " " .. (ball.Visible and "ON" or "OFF"))
+		if not ball.Visible then setClick(false) end
+	end)
+	clkB = btn(body, {Position = UDim2.fromOffset(124, 0), Size = UDim2.fromOffset(116, 22)}, "", function()
+		if not ball.Visible then
+			statusL.Text = tr("c_first")
+			return
+		end
+		setClick(not clicking)
+	end)
+	setOn(ballB, false, tr("c_ball") .. " OFF")
+	setOn(clkB, false, tr("c_click") .. " OFF")
+
+	slider(body, 0, 28, 240, MIN_T, MAX_T, 0.1, interval, function(v)
+		interval = math.floor(v * 10 + 0.5) / 10
+		intL.Text = string.format(tr("c_int"), interval)
+	end)
+	intL = lbl(body, {Position = UDim2.fromOffset(0, 56), Size = UDim2.new(1, 0, 0, 14), TextSize = 10})
+	intL.Text = string.format(tr("c_int"), interval)
+	statusL = lbl(body, {Position = UDim2.fromOffset(0, 76), Size = UDim2.new(1, 0, 0, 14), TextSize = 10, TextColor3 = RED})
+	lbl(body, {Position = UDim2.fromOffset(0, 98), Size = UDim2.new(1, 0, 0, 14), TextSize = 10, TextColor3 = TH.muted, Text = tr("c_drag")})
+
+	return function()
+		clicking = false
+		runId = runId + 1
+		ball:Destroy()
+	end
+end
+
+----------------------------------------------------------------
+-- APP: TELETRANSPORTE
+----------------------------------------------------------------
+local function buildTp(body)
+	local MAXD, CD = 5000, 9.5
+	local on, cdEnd = false, 0
+	local conns = {}
+
+	local function tpTo(pos, normal)
+		local char = LP.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		if not hrp then return false end
+		local boxCF, boxSize = char:GetBoundingBox()
+		local feetToRoot = hrp.Position.Y - (boxCF.Position.Y - boxSize.Y / 2)
+		local width = math.max(hrp.Size.X, hrp.Size.Z) + 1.5
+		local radius = width / 2
+		local check = Vector3.new(width, math.max(boxSize.Y - 0.4, 1), width)
+		local flat = Vector3.new(normal.X, 0, normal.Z)
+		local dir = flat.Magnitude > 0.1 and flat.Unit or Vector3.zero
+		local feet = pos + dir * (radius + 0.3)
+		local ov = OverlapParams.new()
+		ov.FilterType = Enum.RaycastFilterType.Exclude
+		ov.FilterDescendantsInstances = {char}
+		ov.RespectCanCollide = true
+		local chosen = feet
+		for i = 0, 30 do
+			local cand = feet + Vector3.new(0, i * 0.5, 0) + dir * (i * 0.15)
+			local c = cand + Vector3.new(0, check.Y / 2 + 0.2, 0)
+			if #workspace:GetPartBoundsInBox(CFrame.new(c), check, ov) == 0 then
+				chosen = cand
+				break
+			end
+		end
+		local rot = hrp.CFrame - hrp.CFrame.Position
+		char:PivotTo(CFrame.new(chosen + Vector3.new(0, feetToRoot + 0.1, 0)) * rot)
+		hrp.AssemblyLinearVelocity = Vector3.zero
+		return true
+	end
+
+	local tB
+	tB = btn(body, {Position = UDim2.fromOffset(0, 0), Size = UDim2.new(1, 0, 0, 22)}, "", function()
+		on = not on
+		setOn(tB, on, tr("a_tp") .. " " .. (on and "ON" or "OFF"))
+	end)
+	setOn(tB, false, tr("a_tp") .. " OFF")
+	local stat = lbl(body, {Position = UDim2.fromOffset(0, 30), Size = UDim2.new(1, 0, 0, 14), Text = tr("tp_ready")})
+	lbl(body, {Position = UDim2.fromOffset(0, 50), Size = UDim2.new(1, 0, 0, 14), TextSize = 10, TextColor3 = TH.muted, Text = tr("tp_click")})
+	lbl(body, {Position = UDim2.fromOffset(0, 68), Size = UDim2.new(1, 0, 0, 14), TextSize = 10, TextColor3 = TH.muted,
+		Text = string.format(tr("tp_cd"), CD)})
+
+	table.insert(conns, RunService.Heartbeat:Connect(function()
+		local r = cdEnd - os.clock()
+		stat.Text = r > 0 and string.format(tr("tp_wait"), r) or tr("tp_ready")
+	end))
+	table.insert(conns, UIS.InputBegan:Connect(function(input, gp)
+		if gp or not on or os.clock() < cdEnd then return end
+		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
+		local ray = workspace.CurrentCamera:ScreenPointToRay(input.Position.X, input.Position.Y)
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = LP.Character and {LP.Character} or {}
+		local res = workspace:Raycast(ray.Origin, ray.Direction * MAXD, params)
+		if res and tpTo(res.Position, res.Normal) then cdEnd = os.clock() + CD end
+	end))
+
+	return function()
+		for _, c in ipairs(conns) do c:Disconnect() end
+	end
+end
+
+----------------------------------------------------------------
+-- APP: ÁUDIO (detecta sons próximos e toca/copia o ID)
+----------------------------------------------------------------
+local function buildAud(body)
+	local STEPS = {1, 5, 10, 20, 30, 40, 50}
+	local ri, radius = 6, 50
+	local detect, records, playingId, tracked = false, {}, nil, {}
+	local prev = new("Sound", {Volume = 0.5}, SoundService)
+	local circle = new("Part", {Name = "AreaScan", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.2, radius * 2, radius * 2),
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false, CastShadow = false,
+		Material = Enum.Material.Neon, Color = TH.accent, Transparency = 1}, workspace)
+
+	local list = new("ScrollingFrame", {Position = UDim2.fromOffset(0, 50), Size = UDim2.new(1, 0, 1, -50),
+		BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 3,
+		CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y}, body)
+	new("UIListLayout", {Padding = UDim.new(0, 3), SortOrder = Enum.SortOrder.LayoutOrder}, list)
+	local statusL = lbl(body, {Position = UDim2.fromOffset(60, 28), Size = UDim2.new(1, -60, 0, 18), TextSize = 10,
+		TextTruncate = Enum.TextTruncate.AtEnd})
+	local function status(t) statusL.Text = t end
+
+	local function refreshRows()
+		for _, row in ipairs(list:GetChildren()) do
+			if row:IsA("Frame") then
+				local on = playingId ~= nil and row:GetAttribute("SongId") == playingId
+				local pb = row:FindFirstChild("Play")
+				if pb then setOn(pb, on, on and tr("stop") or tr("play")) end
+			end
+		end
+	end
+
+	local function playSong(id)
+		if playingId == id then
+			prev:Stop()
+			playingId = nil
+			refreshRows()
+			return
+		end
+		prev.SoundId = "rbxassetid://" .. id
+		prev:Play()
+		playingId = id
+		status(string.format(tr("au_playing"), id))
+		refreshRows()
+	end
+	prev.Ended:Connect(function()
+		playingId = nil
+		refreshRows()
+	end)
+
+	local function addDetected(sound, owner)
+		local id = string.match(sound.SoundId, "%d+")
+		if not id or records[id] then return end
+		records[id] = true
+		local name = (sound.Name ~= "Sound" and sound.Name or tr("au_song")) .. (owner and (" - " .. owner.DisplayName) or "")
+		local row = new("Frame", {Size = UDim2.new(1, -4, 0, 26), BackgroundColor3 = TH.field, BorderSizePixel = 0}, list)
+		row:SetAttribute("SongId", id)
+		lbl(row, {Position = UDim2.fromOffset(4, 0), Size = UDim2.new(1, -96, 1, 0), TextSize = 10,
+			TextTruncate = Enum.TextTruncate.AtEnd, Text = name .. " " .. id})
+		btn(row, {Name = "Play", Position = UDim2.new(1, -88, 0, 4), Size = UDim2.fromOffset(40, 18), TextSize = 9},
+			tr("play"), function() playSong(id) end)
+		btn(row, {Position = UDim2.new(1, -44, 0, 4), Size = UDim2.fromOffset(40, 18), TextSize = 9}, tr("copy"), function()
+			if setclipboard then
+				setclipboard(id)
+				status(string.format(tr("au_copied"), id))
+			end
+		end)
+		refreshRows()
+	end
+
+	local detB, radB
+	detB = btn(body, {Position = UDim2.fromOffset(0, 0), Size = UDim2.fromOffset(78, 22)}, "", function()
+		detect = not detect
+		setOn(detB, detect, tr("au_det") .. " " .. (detect and "ON" or "OFF"))
+		circle.Transparency = detect and 0.7 or 1
+	end)
+	setOn(detB, false, tr("au_det") .. " OFF")
+	radB = btn(body, {Position = UDim2.fromOffset(82, 0), Size = UDim2.fromOffset(78, 22)}, "", function()
+		ri = ri % #STEPS + 1
+		radius = STEPS[ri]
+		radB.Text = tr("au_rad") .. " " .. radius
+		circle.Size = Vector3.new(0.2, radius * 2, radius * 2)
+		status(tr("au_rad") .. " " .. radius .. " studs")
+	end)
+	radB.Text = tr("au_rad") .. " " .. radius
+	btn(body, {Position = UDim2.fromOffset(164, 0), Size = UDim2.fromOffset(76, 22)}, tr("au_clr"), function()
+		for _, c in ipairs(list:GetChildren()) do
+			if c:IsA("Frame") then c:Destroy() end
+		end
+		records = {}
+	end)
+	btn(body, {Position = UDim2.fromOffset(0, 28), Size = UDim2.fromOffset(56, 18), TextSize = 9}, tr("stop"), function()
+		if playingId then
+			prev:Stop()
+			playingId = nil
+			refreshRows()
+			status(tr("au_stopped"))
+		end
+	end)
+
+	local function trackSound(d)
+		if d:IsA("Sound") then tracked[d] = true end
+	end
+	for _, d in ipairs(workspace:GetDescendants()) do trackSound(d) end
+	local c1 = workspace.DescendantAdded:Connect(trackSound)
+	local c2 = workspace.DescendantRemoving:Connect(function(d) tracked[d] = nil end)
+
+	local function soundPos(s)
+		local p = s.Parent
+		if not p then return nil end
+		if p:IsA("BasePart") then return p.Position
+		elseif p:IsA("Attachment") then return p.WorldPosition
+		elseif p:IsA("Model") then return p:GetPivot().Position
+		elseif p.Parent and p.Parent:IsA("BasePart") then return p.Parent.Position end
+		return nil
+	end
+	local function ownerOf(inst)
+		local cur = inst
+		while cur and cur ~= workspace do
+			local p = Players:GetPlayerFromCharacter(cur)
+			if p then return p end
+			cur = cur.Parent
+		end
+		return nil
+	end
+
+	local gp = RaycastParams.new()
+	gp.FilterType = Enum.RaycastFilterType.Exclude
+	local acc = 0
+	local hb = RunService.Heartbeat:Connect(function(dt)
+		local char = LP.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if not root then return end
+		gp.FilterDescendantsInstances = {char, circle}
+		local hit = workspace:Raycast(root.Position, Vector3.new(0, -100, 0), gp)
+		local y = hit and hit.Position.Y or (root.Position.Y - 3)
+		circle.CFrame = CFrame.new(root.Position.X, y + 0.1, root.Position.Z) * CFrame.Angles(0, 0, math.rad(90))
+		acc = acc + dt
+		if acc >= 0.5 then
+			acc = 0
+			if detect then
+				for sound in pairs(tracked) do
+					if sound.IsPlaying and sound.SoundId ~= "" and sound:IsDescendantOf(workspace) then
+						local pos = soundPos(sound)
+						if pos and (pos - root.Position).Magnitude <= radius then
+							local owner = ownerOf(sound)
+							if owner ~= LP then addDetected(sound, owner) end
+						end
+					end
+				end
+			end
+		end
+	end)
+
+	return function()
+		hb:Disconnect()
+		c1:Disconnect()
+		c2:Disconnect()
+		prev:Destroy()
+		circle:Destroy()
+	end
+end
+
+----------------------------------------------------------------
+-- APP: MÚSICA (boombox)
+----------------------------------------------------------------
+local function buildMusic(body)
+	local closed = false
+	local idBox = field(body, {Position = UDim2.fromOffset(0, 0), Size = UDim2.new(1, 0, 0, 22), TextSize = 11,
+		PlaceholderText = tr("m_ph")})
+	local nowL = lbl(body, {Position = UDim2.fromOffset(0, 56), Size = UDim2.new(1, 0, 0, 14), TextSize = 10, TextColor3 = TH.muted})
+	local timeL = lbl(body, {Position = UDim2.fromOffset(0, 72), Size = UDim2.new(1, 0, 0, 14), TextSize = 10, Font = Enum.Font.Code})
+	local seek = slider(body, 0, 90, 240, 0, 1, 0.001, 0, function(p)
+		if music.TimeLength > 0 then music.TimePosition = p * music.TimeLength end
+	end)
+	lbl(body, {Position = UDim2.fromOffset(0, 112), Size = UDim2.new(1, 0, 0, 12), TextSize = 9, TextColor3 = TH.muted, Text = tr("m_vol")})
+	slider(body, 0, 126, 240, 0, 1, 0.05, music.Volume, function(p) music.Volume = p end)
+	local st = lbl(body, {Position = UDim2.fromOffset(0, 150), Size = UDim2.new(1, 0, 0, 30), TextSize = 10,
+		TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top})
+
+	local function play()
+		local id = idBox.Text:match("%d+")
+		if not id then
+			musicErr = tr("m_bad")
+			sfx(SONS.falha, 0.5)
+			return
+		end
+		musicErr = nil
+		musicId = id
+		music.SoundId = "rbxassetid://" .. id
+		music:Play()
+		task.delay(5, function()
+			if musicId == id and music.TimeLength == 0 then
+				music:Stop()
+				musicErr = tr("m_fail")
+				sfx(SONS.falha, 0.5)
+			end
+		end)
+	end
+	local function stop()
+		music:Stop()
+		musicErr = nil
+	end
+
+	btn(body, {Position = UDim2.fromOffset(0, 26), Size = UDim2.fromOffset(118, 22), BackgroundColor3 = TH.accent,
+		TextColor3 = TH.accentText}, tr("play"), play)
+	btn(body, {Position = UDim2.fromOffset(122, 26), Size = UDim2.fromOffset(118, 22)}, tr("stop"), stop)
+	idBox.FocusLost:Connect(function(enter) if enter then play() end end)
+
+	task.spawn(function()
+		while not closed and alive do
+			local len = music.TimeLength
+			seek.show(len > 0 and math.clamp(music.TimePosition / len, 0, 1) or 0)
+			timeL.Text = mmss(music.TimePosition) .. " / " .. mmss(len)
+			nowL.Text = music.IsPlaying and string.format(tr("m_now"), musicId or "?") or tr("m_idle")
+			st.Text = musicErr or ""
+			st.TextColor3 = musicErr and RED or TH.muted
+			task.wait(0.2)
+		end
+	end)
+
+	return function() closed = true end
+end
+
+----------------------------------------------------------------
+-- APP: CHAT BOT
+----------------------------------------------------------------
+local function buildChat(body)
+	local closed, mode, hist, jobs, working, waitRow = false, nil, {}, {}, false, nil
+	local res, jq, jw, pend, jerr, jogo, lastVer = {}, {}, false, nil, nil, false, -1
+	local showCard, nextJ
+
+	local setupF = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1}, body)
+	local chatF = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1}, body)
+
+	lbl(setupF, {Position = UDim2.fromOffset(6, 6), Size = UDim2.new(1, -12, 0, 16), Font = TH.fb, Text = tr("ch_key")})
+	local keyBox = field(setupF, {Position = UDim2.fromOffset(6, 30), Size = UDim2.new(1, -12, 0, 22), PlaceholderText = "sk-...", TextSize = 10})
+	local keyMsg = lbl(setupF, {Position = UDim2.fromOffset(6, 58), Size = UDim2.new(1, -12, 0, 40), TextWrapped = true,
+		TextYAlignment = Enum.TextYAlignment.Top, TextSize = 10, TextColor3 = TH.muted, Text = tr("ch_nokey") .. "\n" .. DISCORD})
+	btn(setupF, {Position = UDim2.fromOffset(6, 100), Size = UDim2.new(1, -12, 0, 24), BackgroundColor3 = TH.accent,
+		TextColor3 = TH.accentText}, tr("ch_go"), function()
+		local k = keyBox.Text:match("^%s*(.-)%s*$")
+		if keyValid(k) then
+			API_KEY = k
+			setupF.Visible = false
+			chatF.Visible = true
+		else
+			keyMsg.Text = tr("ch_bad")
+			keyMsg.TextColor3 = RED
+			sfx(SONS.falha, 0.5)
+		end
+	end)
+
+	local pageC = new("Frame", {Position = UDim2.fromOffset(0, 50), Size = UDim2.new(1, 0, 1, -50), BackgroundTransparency = 1}, chatF)
+	local pageJ = new("Frame", {Position = UDim2.fromOffset(0, 50), Size = UDim2.new(1, 0, 1, -50), BackgroundTransparency = 1,
+		Visible = false}, chatF)
+	local tabs = {}
+	local function showPage(i)
+		pageC.Visible = (i == 1)
+		pageJ.Visible = (i == 2)
+		for k, b in ipairs(tabs) do b.BackgroundColor3 = (k == i) and TH.accent or TH.btn end
+	end
+
+	local log = new("ScrollingFrame", {Position = UDim2.fromOffset(4, 0), Size = UDim2.fromOffset(WIN_W - 18, 144),
+		BackgroundColor3 = TH.term, BorderSizePixel = 0, ScrollBarThickness = 3,
+		CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y}, pageC)
+	new("UIListLayout", {Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder}, log)
+	new("UIPadding", {PaddingTop = UDim.new(0, 4), PaddingBottom = UDim.new(0, 4)}, log)
+	local ord = 0
+
+	local function addMsg(text, who)
+		ord = ord + 1
+		local row = new("Frame", {Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1, LayoutOrder = ord}, log)
+		new("UIListLayout", {Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder}, row)
+		local bub = lbl(row, {Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, TextWrapped = true,
+			TextSize = 11, LayoutOrder = 1, Text = text,
+			BackgroundTransparency = (who == "sys") and 1 or 0,
+			BackgroundColor3 = (who == "user") and TH.accent or TH.btn,
+			TextXAlignment = (who == "sys") and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left,
+			TextColor3 = (who == "sys") and TH.muted or (who == "user" and TH.accentText or TH.btnText)})
+		new("UIPadding", {PaddingLeft = UDim.new(0, 5), PaddingRight = UDim.new(0, 5),
+			PaddingTop = UDim.new(0, 4), PaddingBottom = UDim.new(0, 4)}, bub)
+		if who == "ai" then
+			local cp
+			cp = btn(row, {Size = UDim2.fromOffset(60, 16), TextSize = 9, LayoutOrder = 2}, tr("copy"), function()
+				local ok = setclipboard and pcall(setclipboard, text)
+				cp.Text = ok and tr("copied") or tr("noclip")
+				task.delay(1.2, function()
+					if cp.Parent then cp.Text = tr("copy") end
+				end)
+			end)
+		end
+		task.defer(function()
+			if log.Parent then log.CanvasPosition = Vector2.new(0, 1e6) end
+		end)
+		return row
+	end
+
+	local function resetChat()
+		hist, jobs = {}, {}
+		for _, c in ipairs(log:GetChildren()) do
+			if c:IsA("Frame") then c:Destroy() end
+		end
+		addMsg(tr("ch_newc"), "sys")
+	end
+
+	local function nextChat()
+		if working or closed or #jobs == 0 then return end
+		working = true
+		local job = table.remove(jobs, 1)
+		waitRow = addMsg(tr("ch_think"), "sys")
+		local msgs = {}
+		for _, m in ipairs(hist) do table.insert(msgs, m) end
+		table.insert(msgs, {role = "user", text = job.text})
+		askAI("You are a friendly assistant inside a Linux simulator on Roblox. Always reply in " .. LANGNAME[CFG.lang] .. ".",
+			msgs, mode, function(reply, err)
+			if closed then return end
+			if waitRow then
+				waitRow:Destroy()
+				waitRow = nil
+			end
+			working = false
+			if reply then
+				table.insert(hist, {role = "user", text = job.text})
+				table.insert(hist, {role = "assistant", text = reply})
+				while #hist > 20 or (hist[1] and hist[1].role ~= "user") do table.remove(hist, 1) end
+				addMsg(clean(reply), "ai")
+				sfx(SONS.msg, 0.4)
+			else
+				addMsg("[FAILED] " .. tostring(err), "sys")
+				sfx(SONS.falha, 0.5)
+			end
+			nextChat()
+		end)
+	end
+
+	local input = field(pageC, {Position = UDim2.fromOffset(4, 148), Size = UDim2.fromOffset(134, 24), TextSize = 11,
+		PlaceholderText = tr("ch_ph")})
+	local function submit()
+		local t = input.Text:match("^%s*(.-)%s*$")
+		input.Text = ""
+		if t == "" or closed then return end
+		addMsg(t, "user")
+		table.insert(jobs, {text = t})
+		nextChat()
+	end
+	btn(pageC, {Position = UDim2.fromOffset(142, 148), Size = UDim2.fromOffset(54, 24), BackgroundColor3 = TH.accent,
+		TextColor3 = TH.accentText}, tr("send"), submit)
+	input.FocusLost:Connect(function(enter) if enter then submit() end end)
+
+	tabs[1] = btn(chatF, {Position = UDim2.fromOffset(4, 4), Size = UDim2.fromOffset(60, 20)}, tr("ch_tab1"), function() showPage(1) end)
+	tabs[2] = btn(chatF, {Position = UDim2.fromOffset(68, 4), Size = UDim2.fromOffset(60, 20)}, tr("ch_tab2"), function() showPage(2) end)
+	btn(chatF, {Position = UDim2.fromOffset(132, 4), Size = UDim2.fromOffset(64, 20)}, tr("ch_new"), resetChat)
+
+	local modeBtns = {}
+	local function setMode(key)
+		mode = (mode ~= key) and key or nil
+		for k, b in pairs(modeBtns) do b.BackgroundColor3 = (mode == k) and TH.accent or TH.btn end
+	end
+	local modeList = {{"inferior", tr("ch_inf")}, {"medio", tr("ch_med")}, {"hard", "Hard"}}
+	for i, m in ipairs(modeList) do
+		modeBtns[m[1]] = btn(chatF, {Position = UDim2.fromOffset(4 + (i - 1) * 66, 28), Size = UDim2.fromOffset(62, 18), TextSize = 10},
+			m[2], function() setMode(m[1]) end)
+	end
+
+	-- aba Jogo: mensagens do chat do servidor, respostas e perguntas
+	local listF = new("ScrollingFrame", {Position = UDim2.fromOffset(4, 24), Size = UDim2.fromOffset(WIN_W - 18, 84),
+		BackgroundColor3 = TH.term, BorderSizePixel = 0, ScrollBarThickness = 3,
+		CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y}, pageJ)
+	new("UIListLayout", {Padding = UDim.new(0, 3), SortOrder = Enum.SortOrder.LayoutOrder}, listF)
+	local cardL = lbl(pageJ, {Position = UDim2.fromOffset(4, 112), Size = UDim2.fromOffset(WIN_W - 18, 40), TextWrapped = true,
+		TextSize = 10, TextYAlignment = Enum.TextYAlignment.Top, BackgroundColor3 = TH.btn, BackgroundTransparency = 0,
+		Text = tr("ch_idle")})
+	local colarBtn = btn(pageJ, {Position = UDim2.fromOffset(4, 154), Size = UDim2.fromOffset(150, 20),
+		BackgroundColor3 = TH.accent, TextColor3 = TH.accentText, TextSize = 10}, tr("ch_paste"), function()
+		local t = res[1]
+		if not t then return end
+		if sendToChat(t) then
+			table.remove(res, 1)
+			boom(pageJ, 100, 150)
+			showCard()
+		else
+			cardL.Text = tr("ch_nosend")
+			cardL.TextColor3 = RED
+			sfx(SONS.falha, 0.5)
+		end
+	end)
+	local xBtn = btn(pageJ, {Position = UDim2.fromOffset(158, 154), Size = UDim2.fromOffset(WIN_W - 176, 20),
+		BackgroundColor3 = RED, TextColor3 = WHITE, TextSize = 10}, "X", function()
+		table.remove(res, 1)
+		showCard()
+	end)
+
+	local popup = new("Frame", {Position = UDim2.fromOffset(12, 30), Size = UDim2.fromOffset(WIN_W - 44, 72),
+		BackgroundColor3 = TH.win, BorderSizePixel = 0, Visible = false, ZIndex = 10}, pageJ)
+	box(popup, true)
+	lbl(popup, {Position = UDim2.fromOffset(6, 6), Size = UDim2.new(1, -30, 0, 16), Font = TH.fb, TextSize = 11, Text = tr("ch_pop")})
+	btn(popup, {Position = UDim2.new(1, -20, 0, 4), Size = UDim2.fromOffset(16, 16), BackgroundColor3 = RED,
+		TextColor3 = WHITE, TextSize = 9}, "X", function() popup.Visible = false end)
+	btn(popup, {Position = UDim2.fromOffset(6, 34), Size = UDim2.fromOffset(82, 28), BackgroundColor3 = TH.accent,
+		TextColor3 = TH.accentText}, tr("ch_ans"), function() queueJ("resposta") end)
+	btn(popup, {Position = UDim2.fromOffset(88, 34), Size = UDim2.fromOffset(82, 28)}, tr("ch_ask"), function() queueJ("pergunta") end)
+
+	local function clearList()
+		for _, r in ipairs(listF:GetChildren()) do
+			if r:IsA("Frame") then r:Destroy() end
+		end
+	end
+	local function rebuildList()
+		clearList()
+		lastVer = serverVer
+		for i = math.max(1, #serverLog - 39), #serverLog do
+			local m = serverLog[i]
+			local row = new("Frame", {Size = UDim2.new(1, -8, 0, 22), BackgroundColor3 = TH.btn, BorderSizePixel = 0, LayoutOrder = i}, listF)
+			lbl(row, {Position = UDim2.fromOffset(4, 0), Size = UDim2.new(1, -36, 1, 0), TextSize = 10,
+				TextTruncate = Enum.TextTruncate.AtEnd, Text = m.name .. ": " .. m.text})
+			btn(row, {Position = UDim2.new(1, -28, 0, 2), Size = UDim2.fromOffset(24, 18), BackgroundColor3 = TH.accent,
+				TextColor3 = TH.accentText, TextSize = 12}, "+", function()
+				pend = m
+				popup.Visible = true
+			end)
+		end
+	end
+
+	local jogoBtn
+	jogoBtn = btn(pageJ, {Position = UDim2.fromOffset(4, 0), Size = UDim2.fromOffset(WIN_W - 18, 20), TextSize = 10},
+		tr("ch_pl") .. ": OFF", function()
+		jogo = not jogo
+		jogoBtn.Text = tr("ch_pl") .. ": " .. (jogo and "ON" or "OFF")
+		jogoBtn.BackgroundColor3 = jogo and TH.accent or TH.btn
+		if jogo then rebuildList() else clearList() end
+	end)
+
+	showCard = function()
+		if #res > 0 then
+			cardL.Text = res[1] .. ((#res > 1) and ("  (+" .. (#res - 1) .. " " .. tr("ch_queue") .. ")") or "")
+			cardL.TextColor3 = TH.text
+			colarBtn.Visible, xBtn.Visible = true, true
+		elseif jerr and not jw then
+			cardL.Text = "[FAILED] " .. jerr
+			cardL.TextColor3 = RED
+			colarBtn.Visible, xBtn.Visible = false, false
+		else
+			cardL.Text = jw and tr("ch_gen") or tr("ch_tap")
+			cardL.TextColor3 = TH.muted
+			colarBtn.Visible, xBtn.Visible = false, false
+		end
+	end
+
+	nextJ = function()
+		if jw or closed or #jq == 0 then return end
+		jw = true
+		jerr = nil
+		local job = table.remove(jq, 1)
+		showCard()
+		local order = (job.kind == "resposta") and "Write the ANSWER you would give to this message."
+			or "Write a QUESTION you would ask in reaction to this message."
+		local prompt = "Message from " .. job.msg.name .. ': "' .. job.msg.text .. '"\n\n' .. order
+		askAI("You are an ordinary Roblox player chatting in the server chat. Write like a real player: casual, natural, at most 150 characters, no quotes, never say you are an AI. Always reply in " .. LANGNAME[CFG.lang] .. ". Reply only with the message text.",
+			{{role = "user", text = prompt}}, "medio", function(reply, err)
+			if closed then return end
+			jw = false
+			if reply then
+				local r = reply:gsub("\n", " ")
+				r = r:match('^%s*"?(.-)"?%s*$') or r
+				table.insert(res, cut(r, 200))
+				sfx(SONS.ok, 0.5)
+			else
+				jerr = tostring(err)
+				sfx(SONS.falha, 0.5)
+			end
+			showCard()
+			nextJ()
+		end)
+	end
+
+	queueJ = function(kind)
+		if not pend then return end
+		table.insert(jq, {kind = kind, msg = pend})
+		pend = nil
+		popup.Visible = false
+		showCard()
+		nextJ()
+	end
+
+	task.spawn(function()
+		while not closed and alive do
+			if jogo and serverVer ~= lastVer then rebuildList() end
+			task.wait(0.5)
+		end
+	end)
+
+	setupF.Visible = (API_KEY == "")
+	chatF.Visible = (API_KEY ~= "")
+	showPage(1)
+	addMsg(tr("ch_hello"), "sys")
+	showCard()
+	return function() closed = true end
+end
+
+----------------------------------------------------------------
+-- APP: NAVEGADOR (pesquisa no DuckDuckGo)
+----------------------------------------------------------------
+local function urlEnc(s)
+	return (s:gsub("[^%w%-_%.~ ]", function(c) return string.format("%%%02X", c:byte()) end):gsub(" ", "+"))
+end
+
+local function urlDec(s)
+	return (s:gsub("%+", " "):gsub("%%(%x%x)", function(h) return string.char(tonumber(h, 16)) end))
+end
+
+local function htmlText(h)
+	h = h:gsub("<script.->.-</script>", ""):gsub("<style.->.-</style>", ""):gsub("<[^>]+>", " ")
+	h = h:gsub("&nbsp;", " "):gsub("&quot;", '"'):gsub("&#39;", "'"):gsub("&lt;", "<"):gsub("&gt;", ">"):gsub("&amp;", "&")
+	return (h:gsub("%s+", " "))
+end
+
+local function parseResults(html)
+	local out = {}
+	for attrs, title in html:gmatch('<a([^>]-result__a[^>]-)>(.-)</a>') do
+		local href = attrs:match('href="([^"]+)"') or ""
+		local u = href:match("uddg=([^&]+)")
+		local url = u and urlDec(u) or href:gsub("^//", "https://")
+		local t = htmlText(title)
+		if url ~= "" and t ~= "" then table.insert(out, {title = t, url = url}) end
+		if #out >= 8 then break end
+	end
+	return out
+end
+
+local function buildNav(body)
+	local closed = false
+	local lastResults
+	local addr = field(body, {Position = UDim2.fromOffset(4, 4), Size = UDim2.fromOffset(110, 22), TextSize = 10,
+		PlaceholderText = tr("w_ph")})
+	local status = lbl(body, {Position = UDim2.fromOffset(4, 30), Size = UDim2.new(1, -8, 0, 14), TextSize = 9,
+		TextColor3 = TH.muted, Text = ""})
+	local view = new("ScrollingFrame", {Position = UDim2.fromOffset(4, 48), Size = UDim2.new(1, -8, 1, -52),
+		BackgroundColor3 = TH.term, BorderSizePixel = 0, ScrollBarThickness = 3,
+		CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y}, body)
+	new("UIListLayout", {Padding = UDim.new(0, 3), SortOrder = Enum.SortOrder.LayoutOrder}, view)
+	new("UIPadding", {PaddingTop = UDim.new(0, 3), PaddingLeft = UDim.new(0, 3), PaddingRight = UDim.new(0, 3)}, view)
+
+	local function clearView()
+		for _, c in ipairs(view:GetChildren()) do
+			if not c:IsA("UIListLayout") and not c:IsA("UIPadding") then c:Destroy() end
+		end
+	end
+
+	local function fetch(url, cb)
+		if not httpRequest then
+			status.Text = tr("w_nreq")
+			sfx(SONS.falha, 0.5)
+			return
+		end
+		status.Text = tr("w_load")
+		task.spawn(function()
+			local ok, res2 = pcall(httpRequest, {Url = url, Method = "GET", Headers = {["User-Agent"] = "Mozilla/5.0"}})
+			if closed then return end
+			if not ok or type(res2) ~= "table" or type(res2.Body) ~= "string" then
+				status.Text = tr("w_fail")
+				sfx(SONS.falha, 0.5)
+				return
+			end
+			cb(res2.Body)
+		end)
+	end
+
+	local showResults
+	local function loadUrl(url)
+		addr.Text = url
+		fetch(url, function(body2)
+			clearView()
+			lbl(view, {Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, TextWrapped = true,
+				TextSize = 10, TextYAlignment = Enum.TextYAlignment.Top, Text = cut(htmlText(body2), 2500)})
+			status.Text = tr("w_ok")
+		end)
+	end
+
+	showResults = function(list)
+		clearView()
+		lastResults = list
+		for i, r in ipairs(list) do
+			btn(view, {Size = UDim2.new(1, -6, 0, 24), LayoutOrder = i, TextXAlignment = Enum.TextXAlignment.Left,
+				TextSize = 10, TextWrapped = false, TextTruncate = Enum.TextTruncate.AtEnd, Text = "  " .. r.title},
+				nil, function() loadUrl(r.url) end)
+		end
+	end
+
+	local function search(q)
+		fetch("https://html.duckduckgo.com/html/?q=" .. urlEnc(q), function(body2)
+			local list = parseResults(body2)
+			if #list == 0 then
+				status.Text = tr("w_none")
+				sfx(SONS.falha, 0.5)
+				return
+			end
+			status.Text = string.format(tr("w_res"), #list)
+			showResults(list)
+		end)
+	end
+
+	local function go()
+		local t = addr.Text:match("^%s*(.-)%s*$")
+		if t == "" then return end
+		if t:find("^https?://") then
+			loadUrl(t)
+		elseif t:find("%.") and not t:find("%s") then
+			loadUrl("https://" .. t)
+		else
+			search(t)
+		end
+	end
+
+	btn(body, {Position = UDim2.fromOffset(118, 4), Size = UDim2.fromOffset(40, 22), BackgroundColor3 = TH.accent,
+		TextColor3 = TH.accentText}, tr("go"), go)
+	btn(body, {Position = UDim2.fromOffset(162, 4), Size = UDim2.fromOffset(34, 22), TextSize = 10}, tr("back"), function()
+		if lastResults then showResults(lastResults) end
+	end)
+	addr.FocusLost:Connect(function(enter) if enter then go() end end)
+	lbl(view, {Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, TextWrapped = true, TextSize = 10,
+		TextColor3 = TH.muted, Text = tr("w_hint")})
+
+	return function() closed = true end
+end
+
+----------------------------------------------------------------
+-- APP: SERVIDORES
+----------------------------------------------------------------
+local function buildSrv(body)
+	local closed, servers = false, {}
+	local info = lbl(body, {Position = UDim2.fromOffset(0, 0), Size = UDim2.new(1, -88, 0, 30), TextSize = 9,
+		TextWrapped = true, TextColor3 = TH.muted, Text = ""})
+	local list = new("ScrollingFrame", {Position = UDim2.fromOffset(0, 34), Size = UDim2.new(1, 0, 1, -34),
+		BackgroundColor3 = TH.term, BorderSizePixel = 0, ScrollBarThickness = 3,
+		CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y}, body)
+	new("UIListLayout", {Padding = UDim.new(0, 3), SortOrder = Enum.SortOrder.LayoutOrder}, list)
+
+	local function tp(id)
+		if not pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, id, LP) end) then
+			info.Text = tr("s_nojoin")
+			sfx(SONS.falha, 0.5)
+		end
+	end
+
+	local function row(order, title, sobre, onIr)
+		local r = new("Frame", {Size = UDim2.new(1, -6, 0, 26), BackgroundColor3 = TH.field, BorderSizePixel = 0, LayoutOrder = order}, list)
+		lbl(r, {Position = UDim2.fromOffset(4, 0), Size = UDim2.new(1, -92, 1, 0), TextSize = 10,
+			TextTruncate = Enum.TextTruncate.AtEnd, Text = title})
+		btn(r, {Position = UDim2.new(1, -84, 0, 3), Size = UDim2.fromOffset(40, 20), BackgroundColor3 = TH.accent,
+			TextColor3 = TH.accentText, TextSize = 10}, tr("s_about"), function() info.Text = sobre end)
+		btn(r, {Position = UDim2.new(1, -42, 0, 3), Size = UDim2.fromOffset(38, 20), TextSize = 10}, tr("go"), onIr)
+	end
+
+	local function refresh()
+		if not httpRequest then
+			info.Text = tr("w_nreq")
+			sfx(SONS.falha, 0.5)
+			return
+		end
+		for _, c in ipairs(list:GetChildren()) do
+			if c:IsA("Frame") then c:Destroy() end
+		end
+		info.Text = tr("s_fetch")
+		task.spawn(function()
+			local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", game.PlaceId)
+			local ok, res2 = pcall(httpRequest, {Url = url, Method = "GET"})
+			if closed then return end
+			local okj, data = false, nil
+			if ok and type(res2) == "table" then
+				okj, data = pcall(HttpService.JSONDecode, HttpService, res2.Body or "")
+			end
+			if not okj or type(data) ~= "table" or type(data.data) ~= "table" then
+				info.Text = tr("s_err")
+				sfx(SONS.falha, 0.5)
+				return
+			end
+			servers = {}
+			for _, s in ipairs(data.data) do
+				if s.id ~= game.JobId then table.insert(servers, s) end
+			end
+			row(0, tr("s_rand"), tr("s_randinfo"), function()
+				local pool = {}
+				for _, s in ipairs(servers) do
+					if s.playing < s.maxPlayers then table.insert(pool, s) end
+				end
+				if #pool == 0 then
+					info.Text = tr("s_full")
+					sfx(SONS.falha, 0.5)
+					return
+				end
+				tp(pool[math.random(#pool)].id)
+			end)
+			for i, s in ipairs(servers) do
+				row(i, string.format(tr("s_srv"), i, s.playing, s.maxPlayers),
+					string.format(tr("s_info"), s.playing, s.maxPlayers, s.id),
+					function() tp(s.id) end)
+			end
+			info.Text = string.format(tr("s_found"), #servers)
+		end)
+	end
+
+	btn(body, {Position = UDim2.new(1, -86, 0, 2), Size = UDim2.fromOffset(84, 20), BackgroundColor3 = TH.accent,
+		TextColor3 = TH.accentText, TextSize = 10}, tr("s_refresh"), refresh)
+	refresh()
+
+	return function() closed = true end
+end
+
+----------------------------------------------------------------
+-- APP: JOGOS (menu + carros, cobrinha e perguntas)
+----------------------------------------------------------------
+local function gameCars(area, back)
+	local RW, RH = 230, 186
+	local lane, score, speed, over, obs, spawnT, alive2 = 2, 0, 90, false, {}, 0, true
+	local function laneX(l) return (l - 1) * 77 + 25 end
+
+	local road = new("Frame", {Position = UDim2.fromOffset(10, 24), Size = UDim2.fromOffset(RW, RH),
+		BackgroundColor3 = TH.field, BorderSizePixel = 0, ClipsDescendants = true}, area)
+	local dashes = {}
+	for _, x in ipairs({76, 152}) do
+		for j = 0, 5 do
+			table.insert(dashes, {x = x, y = j * 40 - 20,
+				f = new("Frame", {Size = UDim2.fromOffset(4, 22), BackgroundColor3 = TH.muted, BorderSizePixel = 0}, road)})
+		end
+	end
+	local car = new("Frame", {Size = UDim2.fromOffset(26, 40), Position = UDim2.fromOffset(laneX(lane), RH - 50),
+		BackgroundColor3 = TH.accent, BorderSizePixel = 0, ZIndex = 3}, road)
+	local scoreL = lbl(area, {Position = UDim2.fromOffset(8, 2), Size = UDim2.fromOffset(170, 18), TextSize = 11, Font = TH.fb})
+
+	local function setLane(n)
+		lane = math.clamp(n, 1, 3)
+		car.Position = UDim2.fromOffset(laneX(lane), RH - 50)
+	end
+
+	local restartB
+	local function reset()
+		for _, o in ipairs(obs) do o.f:Destroy() end
+		obs = {}
+		score, speed, over, spawnT = 0, 90, false, 0
+		if restartB then
+			restartB:Destroy()
+			restartB = nil
+		end
+		scoreL.Text = string.format(tr("g_score"), 0)
+		setLane(2)
+	end
+	local function crash()
+		over = true
+		sfx(SONS.falha, 0.6)
+		scoreL.Text = tr("g_over") .. " · " .. score
+		restartB = btn(area, {Position = UDim2.fromOffset(90, 110), Size = UDim2.fromOffset(120, 26)}, tr("g_restart"), reset)
+	end
+
+	btn(area, {Position = UDim2.new(1, -62, 0, 2), Size = UDim2.fromOffset(58, 16), TextSize = 9}, tr("back"), back)
+	btn(area, {Position = UDim2.fromOffset(10, 216), Size = UDim2.fromOffset(110, 22)}, "<", function()
+		if not over then setLane(lane - 1) end
+	end)
+	btn(area, {Position = UDim2.fromOffset(130, 216), Size = UDim2.fromOffset(110, 22)}, ">", function()
+		if not over then setLane(lane + 1) end
+	end)
+	local kc = UIS.InputBegan:Connect(function(i, gp)
+		if gp or over then return end
+		local k = i.KeyCode
+		if k == Enum.KeyCode.Left or k == Enum.KeyCode.A then
+			setLane(lane - 1)
+		elseif k == Enum.KeyCode.Right or k == Enum.KeyCode.D then
+			setLane(lane + 1)
+		end
+	end)
+
+	reset()
+	task.spawn(function()
+		local last = os.clock()
+		while alive2 and alive do
+			local now = os.clock()
+			local dt = math.min(now - last, 0.1)
+			last = now
+			if not over then
+				spawnT = spawnT + dt
+				if spawnT > 0.7 then
+					spawnT = 0
+					local l = math.random(1, 3)
+					table.insert(obs, {l = l, y = -40,
+						f = new("Frame", {Size = UDim2.fromOffset(26, 40), BackgroundColor3 = TH.muted, BorderSizePixel = 0}, road)})
+				end
+				for i = #obs, 1, -1 do
+					local o = obs[i]
+					o.y = o.y + speed * dt
+					o.f.Position = UDim2.fromOffset(laneX(o.l), o.y)
+					if o.l == lane and o.y + 40 > RH - 50 and o.y < RH - 10 then crash() end
+					if o.y > RH then
+						o.f:Destroy()
+						table.remove(obs, i)
+						score = score + 1
+						speed = math.min(260, speed + 3)
+						scoreL.Text = string.format(tr("g_score"), score)
+					end
+				end
+				for _, d in ipairs(dashes) do
+					d.y = (d.y + speed * dt * 0.6) % (RH + 40) - 20
+					d.f.Position = UDim2.fromOffset(d.x, d.y)
+				end
+			end
+			task.wait(0.03)
+		end
+	end)
+
+	return function()
+		alive2 = false
+		kc:Disconnect()
+	end
+end
+
+local function gameSnake(area, back)
+	local COLS, ROWS, CS = 20, 14, 11
+	local board = new("Frame", {Position = UDim2.fromOffset(10, 24), Size = UDim2.fromOffset(COLS * CS, ROWS * CS),
+		BackgroundColor3 = TH.field, BorderSizePixel = 0, ClipsDescendants = true}, area)
+	local cells = {}
+	for x = 1, COLS do
+		cells[x] = {}
+		for y = 1, ROWS do
+			cells[x][y] = new("Frame", {Position = UDim2.fromOffset((x - 1) * CS, (y - 1) * CS),
+				Size = UDim2.fromOffset(CS - 1, CS - 1), BackgroundColor3 = TH.field, BorderSizePixel = 0}, board)
+		end
+	end
+	local scoreL = lbl(area, {Position = UDim2.fromOffset(8, 2), Size = UDim2.fromOffset(170, 18), TextSize = 11, Font = TH.fb})
+	local snake, dir, nextDir, food, score, over, restartB = {}, {x = 1, y = 0}, {x = 1, y = 0}, nil, 0, false, nil
+	local alive2 = true
+
+	local function placeFood()
+		local ok = false
+		while not ok do
+			food = {x = math.random(1, COLS), y = math.random(1, ROWS)}
+			ok = true
+			for _, s in ipairs(snake) do
+				if s.x == food.x and s.y == food.y then
+					ok = false
+					break
+				end
+			end
+		end
+	end
+	local function draw()
+		for x = 1, COLS do
+			for y = 1, ROWS do cells[x][y].BackgroundColor3 = TH.field end
+		end
+		for i, s in ipairs(snake) do
+			cells[s.x][s.y].BackgroundColor3 = (i == 1) and TH.accent or TH.muted
+		end
+		cells[food.x][food.y].BackgroundColor3 = Color3.fromRGB(230, 60, 60)
+	end
+	local function reset()
+		snake = {{x = 5, y = 7}, {x = 4, y = 7}, {x = 3, y = 7}}
+		dir, nextDir = {x = 1, y = 0}, {x = 1, y = 0}
+		score, over = 0, false
+		if restartB then
+			restartB:Destroy()
+			restartB = nil
+		end
+		placeFood()
+		draw()
+		scoreL.Text = string.format(tr("g_score"), 0)
+	end
+	local function step()
+		dir = nextDir
+		local h = {x = snake[1].x + dir.x, y = snake[1].y + dir.y}
+		if h.x < 1 or h.x > COLS or h.y < 1 or h.y > ROWS then return false end
+		for _, s in ipairs(snake) do
+			if s.x == h.x and s.y == h.y then return false end
+		end
+		table.insert(snake, 1, h)
+		if h.x == food.x and h.y == food.y then
+			score = score + 1
+			sfx(SONS.ok, 0.4)
+			placeFood()
+			scoreL.Text = string.format(tr("g_score"), score)
+		else
+			table.remove(snake)
+		end
+		return true
+	end
+	local function crash()
+		over = true
+		sfx(SONS.falha, 0.6)
+		scoreL.Text = tr("g_over") .. " · " .. score
+		restartB = btn(area, {Position = UDim2.fromOffset(60, 70), Size = UDim2.fromOffset(120, 26)}, tr("g_restart"), reset)
+	end
+	local function turn(x, y)
+		if x ~= -dir.x or y ~= -dir.y then nextDir = {x = x, y = y} end
+	end
+
+	btn(area, {Position = UDim2.fromOffset(116, 180), Size = UDim2.fromOffset(28, 22)}, "^", function() turn(0, -1) end)
+	btn(area, {Position = UDim2.fromOffset(76, 204), Size = UDim2.fromOffset(28, 22)}, "<", function() turn(-1, 0) end)
+	btn(area, {Position = UDim2.fromOffset(116, 204), Size = UDim2.fromOffset(28, 22)}, "v", function() turn(0, 1) end)
+	btn(area, {Position = UDim2.fromOffset(156, 204), Size = UDim2.fromOffset(28, 22)}, ">", function() turn(1, 0) end)
+	btn(area, {Position = UDim2.new(1, -62, 0, 2), Size = UDim2.fromOffset(58, 16), TextSize = 9}, tr("back"), back)
+	local kc = UIS.InputBegan:Connect(function(i, gp)
+		if gp or over then return end
+		local k = i.KeyCode
+		if k == Enum.KeyCode.Up or k == Enum.KeyCode.W then turn(0, -1)
+		elseif k == Enum.KeyCode.Down or k == Enum.KeyCode.S then turn(0, 1)
+		elseif k == Enum.KeyCode.Left or k == Enum.KeyCode.A then turn(-1, 0)
+		elseif k == Enum.KeyCode.Right or k == Enum.KeyCode.D then turn(1, 0) end
+	end)
+
+	reset()
+	task.spawn(function()
+		while alive2 and alive do
+			task.wait(0.14)
+			if not over then
+				if step() then draw() else crash() end
+			end
+		end
+	end)
+
+	return function()
+		alive2 = false
+		kc:Disconnect()
+	end
+end
+
+local function gameQuiz(area, back)
+	local qs = QUIZ[CFG.lang]
+	local idx, score, locked, alive2 = 1, 0, false, true
+	local qL = lbl(area, {Position = UDim2.fromOffset(8, 26), Size = UDim2.new(1, -16, 0, 64), TextWrapped = true,
+		TextSize = 12, Font = TH.fb, TextYAlignment = Enum.TextYAlignment.Top})
+	local scL = lbl(area, {Position = UDim2.fromOffset(8, 2), Size = UDim2.fromOffset(170, 18), TextSize = 11, Font = TH.fb})
+	local fbL = lbl(area, {Position = UDim2.fromOffset(8, 222), Size = UDim2.new(1, -16, 0, 16), TextSize = 11, Font = TH.fb})
+	local opts, restartB, answer = {}, nil, nil
+	for i = 1, 4 do
+		opts[i] = btn(area, {Position = UDim2.fromOffset(10, 96 + (i - 1) * 30), Size = UDim2.new(1, -20, 0, 26), TextSize = 11},
+			"", function() answer(i) end)
+	end
+
+	local function show()
+		local q = qs[idx]
+		qL.Text = q[1]
+		scL.Text = string.format(tr("g_score"), score)
+		for i = 1, 4 do
+			opts[i].Text = q[2][i]
+			opts[i].Visible = true
+		end
+	end
+	local function finish()
+		qL.Text = string.format(tr("g_end"), score, #qs)
+		for i = 1, 4 do opts[i].Visible = false end
+		if not restartB then
+			restartB = btn(area, {Position = UDim2.fromOffset(70, 130), Size = UDim2.fromOffset(120, 26)}, tr("g_restart"), function()
+				idx, score = 1, 0
+				restartB.Visible = false
+				fbL.Text = ""
+				show()
+			end)
+		end
+		restartB.Visible = true
+	end
+	answer = function(i)
+		if locked or not alive2 then return end
+		locked = true
+		if i == qs[idx][3] then
+			score = score + 1
+			fbL.Text = tr("g_ok")
+			sfx(SONS.ok, 0.4)
+		else
+			fbL.Text = tr("g_bad")
+			sfx(SONS.falha, 0.5)
+		end
+		task.delay(0.9, function()
+			if not alive2 then return end
+			locked = false
+			fbL.Text = ""
+			idx = idx + 1
+			if idx > #qs then finish() else show() end
+		end)
+	end
+
+	show()
+	btn(area, {Position = UDim2.new(1, -62, 0, 2), Size = UDim2.fromOffset(58, 16), TextSize = 9}, tr("back"), back)
+	return function() alive2 = false end
+end
+
+local function buildGames(body)
+	local area = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1}, body)
+	local stopCur
+	local menu
+	local function clearArea()
+		if stopCur then
+			stopCur()
+			stopCur = nil
+		end
+		for _, c in ipairs(area:GetChildren()) do c:Destroy() end
+	end
+	local function open(fn)
+		clearArea()
+		stopCur = fn(area, menu)
+	end
+	menu = function()
+		clearArea()
+		for i, g in ipairs({{"g_cars", gameCars}, {"g_snake", gameSnake}, {"g_quiz", gameQuiz}}) do
+			btn(area, {Position = UDim2.fromOffset(35, 40 + (i - 1) * 52), Size = UDim2.fromOffset(180, 38), TextSize = 13},
+				tr(g[1]), function() open(g[2]) end)
+		end
+	end
+	menu()
+	return function()
+		if stopCur then
+			stopCur()
+			stopCur = nil
+		end
+	end
+end
+
+----------------------------------------------------------------
+-- APP: CONFIGURAÇÕES (idioma, tema e música de fundo)
+----------------------------------------------------------------
+local function buildCfg(body)
+	lbl(body, {Position = UDim2.fromOffset(0, 0), Size = UDim2.new(1, 0, 0, 14), TextSize = 10, TextColor3 = TH.muted, Text = tr("cfg_lang")})
+	for i = 1, 3 do
+		local on = CFG.lang == i
+		btn(body, {Position = UDim2.fromOffset((i - 1) * 82, 16), Size = UDim2.fromOffset(78, 22),
+			BackgroundColor3 = on and TH.accent or TH.btn, TextColor3 = on and TH.accentText or TH.btnText},
+			LANGLBL[i], function() setLang(i) end)
+	end
+	lbl(body, {Position = UDim2.fromOffset(0, 44), Size = UDim2.new(1, 0, 0, 14), TextSize = 10, TextColor3 = TH.muted, Text = tr("cfg_theme")})
+	for i, k in ipairs({"linux", "w98", "w95", "xp"}) do
+		local on = CFG.theme == k
+		btn(body, {Position = UDim2.fromOffset(((i - 1) % 2) * 122, 60 + math.floor((i - 1) / 2) * 26), Size = UDim2.fromOffset(118, 22),
+			BackgroundColor3 = on and TH.accent or TH.btn, TextColor3 = on and TH.accentText or TH.btnText},
+			THEMES[k].name, function() setTheme(k) end)
+	end
+	lbl(body, {Position = UDim2.fromOffset(0, 118), Size = UDim2.new(1, 0, 0, 14), TextSize = 10, TextColor3 = TH.muted, Text = tr("cfg_bg")})
+	local onB
+	onB = btn(body, {Position = UDim2.fromOffset(0, 134), Size = UDim2.new(1, 0, 0, 22)}, "", function()
+		CFG.bgOn = not CFG.bgOn
+		setOn(onB, CFG.bgOn, CFG.bgOn and tr("cfg_on") or tr("cfg_off"))
+	end)
+	setOn(onB, CFG.bgOn, CFG.bgOn and tr("cfg_on") or tr("cfg_off"))
+	lbl(body, {Position = UDim2.fromOffset(0, 160), Size = UDim2.new(1, 0, 0, 14), TextSize = 10, TextColor3 = TH.muted, Text = tr("cfg_id")})
+	local idF = field(body, {Position = UDim2.fromOffset(0, 176), Size = UDim2.new(1, 0, 0, 22), TextSize = 11, Text = CFG.bgId})
+	local msg = lbl(body, {Position = UDim2.fromOffset(0, 226), Size = UDim2.new(1, 0, 0, 14), TextSize = 10, TextColor3 = TH.muted})
+	btn(body, {Position = UDim2.fromOffset(0, 202), Size = UDim2.new(1, 0, 0, 22), BackgroundColor3 = TH.accent,
+		TextColor3 = TH.accentText}, tr("cfg_apply"), function()
+		CFG.bgId = idF.Text:match("%d+") or ""
+		applyBg()
+		msg.Text = tr("cfg_saved")
+	end)
+end
+
+----------------------------------------------------------------
+-- LISTA DE APPS
+----------------------------------------------------------------
+APPS = {
+	{id = "terminal", key = "a_term", glyph = ">_", color = Color3.fromRGB(25, 25, 25), fg = Color3.fromRGB(90, 255, 120), h = 220, build = buildTerm},
+	{id = "velocidade", key = "a_vel", glyph = "VE", color = Color3.fromRGB(200, 120, 30), fg = WHITE, h = 190, build = buildVel},
+	{id = "autoclick", key = "a_clk", glyph = "AC", color = Color3.fromRGB(40, 140, 90), fg = WHITE, h = 130, build = buildClk},
+	{id = "teleporte", key = "a_tp", glyph = "TP", color = Color3.fromRGB(120, 60, 160), fg = WHITE, h = 110, build = buildTp},
+	{id = "audio", key = "a_aud", glyph = "AU", color = Color3.fromRGB(60, 90, 170), fg = WHITE, h = 230, build = buildAud},
+	{id = "musica", key = "a_mus", glyph = "MP", color = Color3.fromRGB(233, 84, 32), fg = WHITE, h = 200, build = buildMusic},
+	{id = "chatbot", key = "a_chat", glyph = "IA", color = Color3.fromRGB(120, 60, 150), fg = WHITE, h = 246, build = buildChat},
+	{id = "navegador", key = "a_web", glyph = "WWW", color = Color3.fromRGB(60, 120, 220), fg = WHITE, h = 240, build = buildNav},
+	{id = "servidores", key = "a_srv", glyph = "SRV", color = Color3.fromRGB(40, 110, 80), fg = WHITE, h = 236, build = buildSrv},
+	{id = "jogos", key = "a_games", glyph = "GM", color = Color3.fromRGB(170, 40, 40), fg = WHITE, h = 262, build = buildGames},
+	{id = "config", key = "a_cfg", glyph = "CFG", color = Color3.fromRGB(80, 80, 80), fg = WHITE, h = 262, build = buildCfg},
+}
+for _, a in ipairs(APPS) do APPID[a.id] = a end
+
+----------------------------------------------------------------
+-- INICIALIZAÇÃO: shell, música de fundo, boot e relógio
+----------------------------------------------------------------
+buildShell()
+applyBg()
+
+local boot = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundColor3 = BLACK, BorderSizePixel = 0, ZIndex = 60}, win)
+local bootL = lbl(boot, {Position = UDim2.fromOffset(8, 8), Size = UDim2.new(1, -16, 1, -16), TextSize = 10,
+	Font = Enum.Font.Code, TextWrapped = true, RichText = true, TextYAlignment = Enum.TextYAlignment.Top,
+	TextColor3 = Color3.fromRGB(210, 210, 210), ZIndex = 61})
+
+task.spawn(function()
+	local out = {}
+	local function add(s)
+		table.insert(out, s)
+		bootL.Text = table.concat(out, "\n")
+	end
+	add(col("E95420", "Ubuntu Roblox 22.04 LTS (tty1)"))
+	sfx(SONS.ok, 0.4)
+	local steps = {
+		{tr("b_mount"), "5AFF78"},
+		{tr("b_sound"), "5AFF78"},
+		httpRequest and {tr("b_net"), "5AFF78"} or {tr("b_nonet"), "FF5F5F"},
+		{tr("b_apps"), "5AFF78"},
+	}
+	for _, s in ipairs(steps) do
+		task.wait(0.35)
+		local failed = s[2] == "FF5F5F"
+		add(col(s[2], (failed and "[FAILED] " or "[  OK  ] ") .. s[1]))
+		if failed then sfx(SONS.falha, 0.6) end
+	end
+	task.wait(0.4)
+	add(col("E95420", string.format(tr("b_hi"), LP.Name)))
+	sfx(SONS.ok, 0.5)
+	task.wait(0.8)
+	boot:Destroy()
+end)
+
+task.spawn(function()
+	while alive do
+		if clockL then clockL.Text = os.date("%H:%M") end
+		task.wait(1)
+	end
+end)
